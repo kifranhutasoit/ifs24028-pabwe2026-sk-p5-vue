@@ -78,6 +78,23 @@
       </div>
     </div>
 
-    <!-- bagian button tetap sama -->
+    <div class="pt-2">
+      <button
+        type="submit"
+        id="register-submit-button"
+        data-testid="register-submit-button"
+        :disabled="loading"
+        class="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-md shadow-blue-600/25 transition-all disabled:opacity-60"
+      >
+        <template v-if="loading">
+          <Loader2 :size="18" class="animate-spin" aria-hidden="true" />
+          <span>Mendaftarkan Akun...</span>
+        </template>
+        <template v-else>
+          <UserPlus :size="18" :stroke-width="2.5" aria-hidden="true" />
+          <span>Daftar Akun</span>
+        </template>
+      </button>
+    </div>
   </form>
 </template>
