@@ -26,13 +26,24 @@ const apiHelper = (() => {
   function putAccessToken(token) {
     if (!token) {
       localStorage.removeItem("accessToken");
+      document.cookie = "accessToken=; path=/; max-age=0; SameSite=Lax";
     } else {
       localStorage.setItem("accessToken", token);
+      document.cookie = `accessToken=${encodeURIComponent(token)}; path=/; max-age=86400; SameSite=Lax`;
     }
   }
 
   function getAccessToken() {
-    return localStorage.getItem("accessToken");
+    const fromStorage = localStorage.getItem("accessToken");
+    if (fromStorage) return fromStorage;
+
+    const match = document.cookie.match(/(?:^|; )accessToken=([^;]*)/);
+    if (match) {
+      const token = decodeURIComponent(match[1]);
+      localStorage.setItem("accessToken", token);
+      return token;
+    }
+    return null;
   }
 
   return {
