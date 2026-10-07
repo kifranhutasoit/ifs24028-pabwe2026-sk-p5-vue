@@ -1,19 +1,3 @@
-import "@testing-library/jest-dom/vitest";
-import { afterEach, vi } from "vitest";
+import '@testing-library/jest-dom/vitest'
 
-window.matchMedia =
-  window.matchMedia ||
-  ((query) => ({
-    matches: false,
-    media: query,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-  }));
-window.scrollTo = vi.fn();
-
-afterEach(() => {
-  localStorage.clear();
-  vi.clearAllMocks();
-});
+afterEach(() => localStorage.clear())

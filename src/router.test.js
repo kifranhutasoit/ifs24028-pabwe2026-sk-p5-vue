@@ -1,32 +1,26 @@
-import { describe, it, expect } from "vitest";
-import router, { routes, createAppRouter } from "./router";
-import { createMemoryHistory } from "vue-router";
+import { createMemoryHistory } from 'vue-router'
+import { createAppRouter } from './router.js'
 
-describe("Router Configuration", () => {
-  it("should have correct routes defined", () => {
-    expect(routes).toBeInstanceOf(Array);
-    expect(routes.length).toBeGreaterThan(0);
+async function go(path) {
+  const router = createAppRouter(createMemoryHistory())
+  await router.push(path)
+  return router.currentRoute.value.fullPath
+}
 
-    const authRoute = routes.find((r) => r.path === "/auth");
-    expect(authRoute).toBeDefined();
-    expect(authRoute.children.length).toBe(2);
-
-    const homeRoute = routes.find((r) => r.path === "/");
-    expect(homeRoute).toBeDefined();
-
-    const notFoundRoute = routes.find((r) => r.path === "/:pathMatch(.*)*");
-    expect(notFoundRoute).toBeDefined();
-  });
-
-  it("should create app router with custom memory history", () => {
-    const memoryHistory = createMemoryHistory();
-    const appRouter = createAppRouter(memoryHistory);
-    expect(appRouter).toBeDefined();
-    expect(appRouter.options.history).toBe(memoryHistory);
-  });
-
-  it("should export default router instance", () => {
-    expect(router).toBeDefined();
-    expect(typeof router.push).toBe("function");
-  });
-});
+describe('route guard', () => {
+  it('redirects guests away from protected routes', async () => {
+    expect(await go('/users')).toBe('/auth/login')
+  })
+  it('redirects logged-in users away from auth pages', async () => {
+    localStorage.setItem('accessToken', 't')
+    expect(await go('/auth/login')).toBe('/')
+  })
+  it('allows logged-in users on protected routes and 404', async () => {
+    localStorage.setItem('accessToken', 't')
+    expect(await go('/profile')).toBe('/profile')
+    expect(await go('/nope')).toBe('/nope')
+  })
+  it('allows guests on auth pages', async () => {
+    expect(await go('/auth/register')).toBe('/auth/register')
+  })
+})

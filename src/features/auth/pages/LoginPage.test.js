@@ -1,125 +1,33 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import LoginPage from "./LoginPage.vue";
-import { renderWithProviders } from "../../../test-utils";
-import apiHelper from "../../../helpers/apiHelper";
+import { screen, fireEvent, waitFor } from '@testing-library/vue'
+import { renderWithProviders } from '../../../test-utils.js'
+import LoginPage from './LoginPage.vue'
+import * as api from '../api/authApi.js'
+import { showErrorDialog } from '../../../helpers/toolsHelper.js'
 
-describe("LoginPage", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+vi.mock('../api/authApi.js')
+vi.mock('../../../helpers/toolsHelper.js', () => ({ showErrorDialog: vi.fn() }))
 
-  it("should render inputs and handle submit", async () => {
-    const { wrapper, authStore } = renderWithProviders(LoginPage, {
-      preloadedState: {
-        isAuthLogin: false,
-        isProfile: false,
-      },
-    });
+async function fillAndSubmit() {
+  await fireEvent.update(document.querySelector('#login-email-input'), 'a@b.c')
+  await fireEvent.update(document.querySelector('#login-password-input'), 'secret')
+  await fireEvent.click(document.querySelector('#login-submit-button'))
+}
 
-    const loginSpy = vi
-      .spyOn(authStore, "asyncSetIsAuthLogin")
-      .mockReturnValue(Promise.resolve());
+describe('LoginPage', () => {
+  it('redirects home on success', async () => {
+    api.login.mockResolvedValue({ success: true, data: { token: 't' } })
+    const { router } = renderWithProviders(LoginPage)
+    const push = vi.spyOn(router, 'push')
+    await fillAndSubmit()
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/'))
+    expect(api.login).toHaveBeenCalledWith({ email: 'a@b.c', password: 'secret' })
+  })
 
-    const emailInput = wrapper.find('[data-testid="login-email-input"]');
-    const passwordInput = wrapper.find('[data-testid="login-password-input"]');
-    const submitBtn = wrapper.find('[data-testid="login-submit-button"]');
-
-    await emailInput.setValue("testing@delcom.org");
-    await passwordInput.setValue("123456");
-    await submitBtn.trigger("submit");
-
-    expect(loginSpy).toHaveBeenCalledWith("testing@delcom.org", "123456");
-  });
-
-  it("should handle submit when token is present", async () => {
-    vi.spyOn(apiHelper, "getAccessToken").mockReturnValue("valid-token");
-
-    const { wrapper, authStore } = renderWithProviders(LoginPage, {
-      preloadedState: {
-        isAuthLogin: false,
-        isProfile: false,
-      },
-    });
-
-    const loginSpy = vi
-      .spyOn(authStore, "asyncSetIsAuthLogin")
-      .mockReturnValue(Promise.resolve());
-
-    const emailInput = wrapper.find('[data-testid="login-email-input"]');
-    const passwordInput = wrapper.find('[data-testid="login-password-input"]');
-    const submitBtn = wrapper.find('[data-testid="login-submit-button"]');
-
-    await emailInput.setValue("token@delcom.org");
-    await passwordInput.setValue("123456");
-    await submitBtn.trigger("submit");
-
-    expect(loginSpy).toHaveBeenCalledWith("token@delcom.org", "123456");
-  });
-
-  it("should handle error during form submit", async () => {
-    const { wrapper, authStore } = renderWithProviders(LoginPage, {
-      preloadedState: {
-        isAuthLogin: false,
-        isProfile: false,
-      },
-    });
-
-    vi.spyOn(authStore, "asyncSetIsAuthLogin").mockReturnValue(
-      Promise.reject(new Error("Login failed"))
-    );
-
-    const emailInput = wrapper.find('[data-testid="login-email-input"]');
-    const passwordInput = wrapper.find('[data-testid="login-password-input"]');
-    const submitBtn = wrapper.find('[data-testid="login-submit-button"]');
-
-    await emailInput.setValue("error@delcom.org");
-    await passwordInput.setValue("123456");
-    await submitBtn.trigger("submit");
-
-    expect(wrapper.find('[data-testid="login-submit-button"]').exists()).toBe(true);
-  });
-
-  it("should trigger asyncSetProfile when login succeeds and token exists", async () => {
-    vi.spyOn(apiHelper, "getAccessToken").mockReturnValue("test-token");
-
-    const { authStore, usersStore } = renderWithProviders(LoginPage, {
-      preloadedState: {
-        isAuthLogin: false,
-        isProfile: false,
-      },
-    });
-
-    const setProfileSpy = vi
-      .spyOn(usersStore, "asyncSetProfile")
-      .mockReturnValue(Promise.resolve());
-
-    authStore.setIsAuthLogin(true);
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(setProfileSpy).toHaveBeenCalled();
-  });
-
-  it("should reset state when login fails or when isProfile finishes", async () => {
-    vi.spyOn(apiHelper, "getAccessToken").mockReturnValue(null);
-
-    const { authStore, usersStore } = renderWithProviders(LoginPage, {
-      preloadedState: {
-        isAuthLogin: false,
-        isProfile: false,
-      },
-    });
-
-    const setLoginActionSpy = vi.spyOn(authStore, "setIsAuthLogin");
-    const setIsProfileSpy = vi.spyOn(usersStore, "setIsProfile");
-
-    // Case 1: isAuthLogin true but no token
-    authStore.setIsAuthLogin(true);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(setLoginActionSpy).toHaveBeenCalledWith(false);
-
-    // Case 2: isProfile true
-    usersStore.setIsProfile(true);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(setIsProfileSpy).toHaveBeenCalledWith(false);
-  });
-});
+  it('shows error dialog on failure', async () => {
+    api.login.mockResolvedValue({ success: false, message: 'Salah' })
+    renderWithProviders(LoginPage)
+    await fillAndSubmit()
+    await waitFor(() => expect(showErrorDialog).toHaveBeenCalledWith('Salah'))
+    expect(screen.getByRole('link', { name: 'Daftar' })).toBeInTheDocument()
+  })
+})

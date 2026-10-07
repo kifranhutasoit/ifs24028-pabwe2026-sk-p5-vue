@@ -1,18 +1,19 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
-import Editor from "@toast-ui/editor";
-import "@toast-ui/editor/dist/toastui-editor-viewer.css";
+import { computed } from 'vue'
+import InlineText from './InlineText.vue'
+import { parseMarkdown } from '../../../helpers/markdownHelper.js'
 
-const props = defineProps({ value: { type: String, default: "" } });
-const el = ref(null);
-let viewer;
-
-onMounted(() => {
-  viewer = Editor.factory({ el: el.value, viewer: true, initialValue: props.value });
-});
-watch(() => props.value, (v) => viewer?.setMarkdown(v));
+const props = defineProps({ source: { type: String, default: '' } })
+const blocks = computed(() => parseMarkdown(props.source))
 </script>
 
 <template>
-  <div ref="el" data-testid="markdown-viewer" />
+  <div class="space-y-2">
+    <template v-for="(block, i) in blocks" :key="i">
+      <ul v-if="block.type === 'ul'" class="list-disc pl-5">
+        <li v-for="(item, j) in block.items" :key="j"><InlineText :segments="item" /></li>
+      </ul>
+      <p v-else><InlineText :segments="block.items[0]" /></p>
+    </template>
+  </div>
 </template>

@@ -1,13 +1,8 @@
-import { ref } from "vue";
+import { ref } from 'vue'
 
-/** Composable untuk two-way binding input: const [value, onChange, setValue] = useInput("") */
-export function useInput(initialValue = "") {
-  const value = ref(initialValue);
-  const onChange = (event) => {
-    value.value = event.target.value;
-  };
-  const setValue = (next) => {
-    value.value = next;
-  };
-  return [value, onChange, setValue];
+export function useInput(initial = '') {
+  const value = ref(initial)
+  const onInput = (event) => { value.value = event.target.value }
+  const reset = () => { value.value = initial }
+  return { value, onInput, reset }
 }

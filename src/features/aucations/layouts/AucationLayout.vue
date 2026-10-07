@@ -1,30 +1,29 @@
 <script setup>
-import { onMounted, ref } from "vue";
-import { RouterView, useRouter } from "vue-router";
-import NavbarComponent from "../components/NavbarComponent.vue";
-import SidebarComponent from "../components/SidebarComponent.vue";
-import { useUsersStore } from "../../users/states/usersStore.js";
-import { useAuthStore } from "../../auth/states/authStore.js";
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../../auth/states/authStore.js'
+import { useUsersStore } from '../../users/states/usersStore.js'
+import NavbarComponent from '../components/NavbarComponent.vue'
+import SidebarComponent from '../components/SidebarComponent.vue'
 
-const router = useRouter();
-const users = useUsersStore();
-const auth = useAuthStore();
-const open = ref(false);
+const router = useRouter()
+const auth = useAuthStore()
+const users = useUsersStore()
+onMounted(users.loadProfile)
 
-onMounted(async () => {
-  if (!(await users.fetchProfile())) {
-    auth.logout();
-    router.replace("/auth/login");
-  }
-});
+async function logout() {
+  await auth.logoutUser()
+  router.push('/auth/login')
+}
 </script>
 
 <template>
   <div class="min-h-screen">
-    <NavbarComponent @toggle-sidebar="open = !open" />
-    <div class="flex">
-      <SidebarComponent :open="open" @close="open = false" />
-      <main class="min-w-0 flex-1 p-4 sm:p-6"><RouterView /></main>
+    <NavbarComponent :profile="users.profile" @logout="logout" />
+    <div class="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:flex-row">
+      <SidebarComponent />
+      <main class="min-w-0 flex-1"><RouterView /></main>
     </div>
+    <footer class="p-4 text-center text-sm text-stone-700">Delcom Auction</footer>
   </div>
 </template>

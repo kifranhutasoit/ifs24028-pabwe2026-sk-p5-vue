@@ -1,17 +1,22 @@
-import { apiFetch } from "../../../helpers/apiHelper.js";
+import { requestJson } from '../../../helpers/apiHelper.js'
 
-export const getAucations = (params) => apiFetch("/aucations", { params });
-export const getAucation = (id) => apiFetch(`/aucations/${id}`);
-export const postAucation = ({ title, description, start_bid, closed_at }) =>
-  apiFetch("/aucations", { method: "POST", body: { title, description, start_bid, closed_at } });
-export const putAucation = (id, { title, description, start_bid, closed_at }) =>
-  apiFetch(`/aucations/${id}`, { method: "PUT", body: { title, description, start_bid, closed_at } });
-export const postAucationCover = (id, file) => {
-  const form = new FormData();
-  form.append("cover", file);
-  return apiFetch(`/aucations/${id}/cover`, { method: "POST", body: form, isForm: true });
-};
-export const deleteAucation = (id) => apiFetch(`/aucations/${id}`, { method: "DELETE" });
-export const postBid = (id, bid) => apiFetch(`/aucations/${id}/bids`, { method: "POST", body: { bid } });
-export const deleteBid = (id) => apiFetch(`/aucations/${id}/bids`, { method: "DELETE" });
-export const deleteAllAucations = () => apiFetch("/aucations", { method: "DELETE" });
+const send = (method, body) => ({ method, body: JSON.stringify(body) })
+const cover = (file) => {
+  const form = new FormData()
+  form.append('cover', file)
+  return { method: 'POST', body: form }
+}
+
+export const getAucations = (filters = {}) => {
+  const qs = new URLSearchParams(Object.entries(filters).map(([k, v]) => [k, Number(v)])).toString()
+  const query = qs ? `?${qs}` : ''
+  return requestJson(`/aucations${query}`)
+}
+export const getAucation = (id) => requestJson(`/aucations/${id}`)
+export const addAucation = (body) => requestJson('/aucations', send('POST', body))
+export const changeAucation = (id, body) => requestJson(`/aucations/${id}`, send('PUT', body))
+export const changeCover = (id, file) => requestJson(`/aucations/${id}/cover`, cover(file))
+export const deleteAucation = (id) => requestJson(`/aucations/${id}`, { method: 'DELETE' })
+export const deleteAucations = () => requestJson('/aucations', { method: 'DELETE' })
+export const addBid = (id, body) => requestJson(`/aucations/${id}/bids`, send('POST', body))
+export const deleteBid = (id) => requestJson(`/aucations/${id}/bids`, { method: 'DELETE' })

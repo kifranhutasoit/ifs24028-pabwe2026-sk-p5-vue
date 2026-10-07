@@ -1,285 +1,186 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import DetailPage from "./DetailPage.vue";
-import { renderWithProviders } from "../../../test-utils";
-import * as toolsHelper from "../../../helpers/toolsHelper";
-import { reactive } from "vue";
+import { screen, fireEvent, waitFor } from '@testing-library/vue'
+import { renderWithProviders } from '../../../test-utils.js'
+import DetailPage from './DetailPage.vue'
+import * as api from '../api/aucationApi.js'
+import { useUsersStore } from '../../users/states/usersStore.js'
+import { showSuccessDialog, showErrorDialog, showConfirmDialog } from '../../../helpers/toolsHelper.js'
 
-const mockRouter = {
-  push: vi.fn(),
-};
+vi.mock('../api/aucationApi.js')
+vi.mock('../../../helpers/toolsHelper.js', async (orig) => ({
+  ...(await orig()), showSuccessDialog: vi.fn(), showErrorDialog: vi.fn(), showConfirmDialog: vi.fn(),
+}))
 
-const mockRoute = reactive({ params: { id: "1" } });
+const detail = (extra = {}) => ({
+  success: true,
+  data: { aucation: { id: 7, user_id: 1, title: 'Lukisan', description: '**Cat** minyak', start_bid: 150000, closed_at: '2099-12-01 00:00:00', bids: [{ id: 1, bid: 200000, created_at: '2026-10-05T08:44:12.000000Z', user: { name: 'Budi' } }, { id: 2, bid: 100000, created_at: '2026-10-04T08:00:00.000000Z' }], author: { name: 'Sari', photo: '' }, ...extra } },
+})
+const click = (name) => fireEvent.click(screen.getByRole('button', { name }))
+const noDialog = () => expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
-vi.mock("vue-router", async () => {
-  const actual = await vi.importActual("vue-router");
-  return {
-    ...actual,
-    useRouter: () => mockRouter,
-    useRoute: () => mockRoute,
-  };
-});
+async function mount({ me = 99 } = {}) {
+  const utils = renderWithProviders(DetailPage, { route: '/aucations/7' })
+  if (me) useUsersStore(utils.pinia).profile = { id: me }
+  await screen.findByText('Lukisan')
+  await waitFor(() => expect(api.getAucation).toHaveBeenCalledWith('7'))
+  return utils
+}
 
-describe("DetailPage", () => {
-  const mockProfile = { id: 1, name: "Yogi", email: "yogi@delcom.org", role: "admin" };
-  const mockAucation = {
-    id: 1,
-    title: "PlayStation 5 Pro",
-    description: "Konsol game mulus komplit",
-    start_bid: 8000000,
-    closed_at: "2026-12-31 23:59:00",
-    is_closed: 0,
-    cover: "https://example.com/ps5.jpg",
-    created_at: "2026-01-01T00:00:00.000Z",
-    author_id: 1,
-    author: { id: 1, name: "Yogi" },
-    bids: [
-      {
-        id: 101,
-        user_id: 1,
-        bid: 9500000,
-        created_at: "2026-01-02T10:00:00.000Z",
-        user: { id: 1, name: "Yogi" },
-      },
-      {
-        id: 102,
-        user_id: 2,
-        bid: 9000000,
-        created_at: "2026-01-01T12:00:00.000Z",
-        user: { id: 2, name: "Budi" },
-      },
-    ],
-  };
+describe('DetailPage', () => {
+  beforeEach(() => { vi.clearAllMocks(); api.getAucation.mockResolvedValue(detail()) })
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  it('renders details, markdown and bids without a cover', async () => {
+    await mount()
+    expect(screen.getByText('Rp 200.000')).toBeInTheDocument()
+    expect(screen.getByText('Cat').tagName).toBe('STRONG')
+    expect(screen.getByText('Sari')).toBeInTheDocument()
+    expect(screen.getByText('oleh Budi')).toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')[0]).toHaveTextContent('Rp 200.000')
+    expect(screen.getByRole('button', { name: 'Tawar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ubah lelang' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Hapus lelang' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Sampul Lukisan' })).not.toBeInTheDocument()
+  })
 
-  it("should render loading spinner if profile or aucation is missing", () => {
-    const { wrapper } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: null,
-        aucation: null,
-      },
-    });
+  it('shows only management actions to the owner', async () => {
+    await mount({ me: 1 })
+    for (const name of ['Ubah lelang', 'Ubah sampul', 'Hapus lelang']) expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tawar' })).not.toBeInTheDocument()
+  })
 
-    expect(wrapper.text()).not.toContain("PlayStation 5 Pro");
-  });
+  it('hides all actions until the profile is loaded', async () => {
+    await mount({ me: null })
+    expect(screen.queryByRole('button', { name: 'Tawar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Hapus lelang' })).not.toBeInTheDocument()
+  })
 
-  it("should render auction details, bids list, and open/close modals", async () => {
-    const { wrapper } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: mockProfile,
-        aucation: mockAucation,
-      },
-    });
+  it('shows the highest bid in the bid modal', async () => {
+    await mount()
+    await click('Tawar')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Penawaran tertinggi saat ini Rp 200.000')
+  })
 
-    expect(wrapper.text()).toContain("PlayStation 5 Pro");
-    expect(wrapper.text()).toContain("Konsol game mulus komplit");
-    expect(wrapper.text()).toContain("Sedang Berlangsung");
-    expect(wrapper.text()).toContain("Riwayat Penawaran (2)");
+  it('blocks a bid that is not higher than the current highest bid', async () => {
+    await mount()
+    await click('Tawar')
+    await fireEvent.update(screen.getByLabelText('Nominal penawaran'), '100000')
+    await click('Kirim penawaran')
+    expect(showErrorDialog).toHaveBeenCalledWith('Penawaran harus lebih tinggi dari Rp 200.000')
+    expect(api.addBid).not.toHaveBeenCalled()
+  })
 
-    // Test Place Bid button
-    const placeBidBtn = wrapper.find('[data-testid="place-bid-btn"]');
-    await placeBidBtn.trigger("click");
-    expect(wrapper.find('[data-testid="bid-modal"]').exists()).toBe(true);
+  it('hides bidding once the aucation is closed', async () => {
+    api.getAucation.mockResolvedValue(detail({ closed_at: '2000-01-01 00:00:00' }))
+    await mount()
+    expect(screen.getByRole('status')).toHaveTextContent('Lelang sudah ditutup')
+    expect(screen.queryByRole('button', { name: 'Tawar' })).not.toBeInTheDocument()
+  })
 
-    const closeBidBtn = wrapper.find('[data-testid="close-bid-modal-btn"]');
-    await closeBidBtn.trigger("click");
-    expect(wrapper.find('[data-testid="bid-modal"]').exists()).toBe(false);
+  it('lets a bidder cancel an existing bid instead of bidding again', async () => {
+    api.getAucation.mockResolvedValue(detail({ my_bid: { id: 2, bid: 250000 } }))
+    await mount()
+    expect(screen.getByText('Rp 250.000')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tawar' })).not.toBeInTheDocument()
+    showConfirmDialog.mockResolvedValueOnce(false).mockResolvedValue(true)
+    api.deleteBid.mockResolvedValueOnce({ success: false, message: 'Gagal batal' }).mockResolvedValueOnce({ success: true, message: 'Dibatalkan' })
+    await click('Batalkan penawaran')
+    await waitFor(() => expect(showConfirmDialog).toHaveBeenCalled())
+    expect(api.deleteBid).not.toHaveBeenCalled()
+    await click('Batalkan penawaran')
+    await waitFor(() => expect(showErrorDialog).toHaveBeenCalledWith('Gagal batal'))
+    await click('Batalkan penawaran')
+    await waitFor(() => expect(showSuccessDialog).toHaveBeenCalledWith('Dibatalkan'))
+    expect(api.deleteBid).toHaveBeenLastCalledWith('7')
+  })
 
-    // Test Edit Cover button
-    const editCoverBtn = wrapper.find('[data-testid="edit-cover-btn"]');
-    await editCoverBtn.trigger("click");
-    expect(wrapper.find('[data-testid="change-cover-modal"]').exists()).toBe(true);
+  it('shows an empty state when there are no bids', async () => {
+    api.getAucation.mockResolvedValue(detail({ bids: [] }))
+    await mount()
+    expect(screen.getByText('Belum ada penawaran')).toBeInTheDocument()
+  })
 
-    const closeCoverBtn = wrapper.find('[data-testid="close-cover-modal-btn"]');
-    await closeCoverBtn.trigger("click");
-    expect(wrapper.find('[data-testid="change-cover-modal"]').exists()).toBe(false);
+  it('shows the cover when present', async () => {
+    api.getAucation.mockResolvedValue(detail({ cover: 'http://x/c.png' }))
+    await mount()
+    expect(screen.getByRole('img', { name: 'Sampul Lukisan' })).toBeInTheDocument()
+  })
 
-    // Test Edit Auction button
-    const editDetailBtn = wrapper.find('[data-testid="edit-detail-aucation-btn"]');
-    await editDetailBtn.trigger("click");
-    expect(wrapper.find('[data-testid="edit-aucation-modal"]').exists()).toBe(true);
+  it('places a bid: error keeps the modal, success closes it and reloads', async () => {
+    await mount()
+    const before = api.getAucation.mock.calls.length
+    api.addBid.mockResolvedValueOnce({ success: false, message: 'Rendah' }).mockResolvedValueOnce({ success: true, message: 'Ok' })
+    await click('Tawar')
+    await fireEvent.update(screen.getByLabelText('Nominal penawaran'), '300000')
+    await click('Kirim penawaran')
+    await waitFor(() => expect(showErrorDialog).toHaveBeenCalledWith('Rendah'))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await click('Kirim penawaran')
+    await waitFor(() => expect(showSuccessDialog).toHaveBeenCalledWith('Ok'))
+    expect(api.addBid).toHaveBeenLastCalledWith('7', { bid: 300000 })
+    await waitFor(noDialog)
+    expect(api.getAucation.mock.calls.length).toBeGreaterThan(before)
+  })
 
-    const closeEditBtn = wrapper.find('[data-testid="close-edit-modal-btn"]');
-    await closeEditBtn.trigger("click");
-    expect(wrapper.find('[data-testid="edit-aucation-modal"]').exists()).toBe(false);
-  });
+  it('edits the aucation', async () => {
+    await mount({ me: 1 })
+    api.changeAucation.mockResolvedValueOnce({ success: false, message: 'Gagal ubah' }).mockResolvedValueOnce({ success: true, message: 'Diubah' })
+    await click('Ubah lelang')
+    await fireEvent.update(screen.getByLabelText('Judul'), 'Baru')
+    await fireEvent.update(screen.getByLabelText('Deskripsi'), 'Desc baru')
+    await fireEvent.update(screen.getByLabelText('Harga awal'), '200000')
+    await fireEvent.update(screen.getByLabelText('Ditutup pada'), '2027-01-01T08:00')
+    await click('Simpan perubahan')
+    await waitFor(() => expect(showErrorDialog).toHaveBeenCalledWith('Gagal ubah'))
+    await click('Simpan perubahan')
+    await waitFor(() => expect(showSuccessDialog).toHaveBeenCalledWith('Diubah'))
+    expect(api.changeAucation).toHaveBeenLastCalledWith('7', { title: 'Baru', description: 'Desc baru', start_bid: 200000, closed_at: '2027-01-01 08:00:00' })
+    await waitFor(noDialog)
+  })
 
-  it("should render closed auction state and empty description fallback", () => {
-    const { wrapper } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: mockProfile,
-        aucation: {
-          ...mockAucation,
-          is_closed: 1,
-          description: "",
-          cover: null,
-          author: null,
-          bids: [],
-        },
-      },
-    });
+  it('changes the cover', async () => {
+    await mount({ me: 1 })
+    api.changeCover.mockResolvedValueOnce({ success: false, message: 'Besar' }).mockResolvedValueOnce({ success: true, message: 'Sampul' })
+    const file = new File(['x'], 'c.png', { type: 'image/png' })
+    await click('Ubah sampul')
+    await fireEvent.change(screen.getByLabelText('File sampul'), { target: { files: [file] } })
+    await waitFor(() => expect(showErrorDialog).toHaveBeenCalledWith('Besar'))
+    await fireEvent.change(screen.getByLabelText('File sampul'), { target: { files: [file] } })
+    await waitFor(() => expect(showSuccessDialog).toHaveBeenCalledWith('Sampul'))
+    expect(api.changeCover).toHaveBeenLastCalledWith('7', file)
+    await waitFor(noDialog)
+  })
 
-    expect(wrapper.text()).toContain("Lelang Ditutup");
-    expect(wrapper.text()).toContain("Tidak ada deskripsi rinci untuk barang ini.");
-    expect(wrapper.text()).toContain("Belum ada penawaran yang diajukan");
-    expect(wrapper.find('[data-testid="place-bid-btn"]').exists()).toBe(false);
-  });
+  it('closes the bid modal with Escape', async () => {
+    await mount()
+    await click('Tawar')
+    await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    noDialog()
+  })
 
-  it("should handle auction deletion with confirmation dialog", async () => {
-    const { wrapper, aucationsStore } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: mockProfile,
-        aucation: mockAucation,
-      },
-    });
+  it('closes the owner modals with Escape', async () => {
+    await mount({ me: 1 })
+    for (const name of ['Ubah lelang', 'Ubah sampul']) {
+      await click(name)
+      await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+      noDialog()
+    }
+  })
 
-    const deleteSpy = vi
-      .spyOn(aucationsStore, "asyncDeleteAucation")
-      .mockReturnValue(Promise.resolve());
+  it('does nothing when deletion is cancelled', async () => {
+    await mount({ me: 1 })
+    showConfirmDialog.mockResolvedValue(false)
+    await click('Hapus lelang')
+    await waitFor(() => expect(showConfirmDialog).toHaveBeenCalled())
+    expect(api.deleteAucation).not.toHaveBeenCalled()
+  })
 
-    // Canceled by user
-    vi.spyOn(toolsHelper, "showConfirmDialog").mockResolvedValue({ isConfirmed: false });
-    const deleteBtn = wrapper.find('[data-testid="delete-detail-aucation-btn"]');
-    await deleteBtn.trigger("click");
-    expect(deleteSpy).not.toHaveBeenCalled();
-
-    // Confirmed by user
-    vi.spyOn(toolsHelper, "showConfirmDialog").mockResolvedValue({ isConfirmed: true });
-    await deleteBtn.trigger("click");
-    expect(deleteSpy).toHaveBeenCalledWith(1);
-  });
-
-  it("should handle bid cancellation with confirmation dialog", async () => {
-    const { wrapper, aucationsStore } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: mockProfile,
-        aucation: mockAucation,
-      },
-    });
-
-    const cancelBidSpy = vi
-      .spyOn(aucationsStore, "asyncDeleteBid")
-      .mockReturnValue(Promise.resolve());
-
-    // Confirmed by user
-    vi.spyOn(toolsHelper, "showConfirmDialog").mockResolvedValue({ isConfirmed: true });
-    const cancelBidBtn = wrapper.find('[data-testid="delete-bid-btn-101"]');
-    await cancelBidBtn.trigger("click");
-    expect(cancelBidSpy).toHaveBeenCalledWith(1);
-  });
-
-  it("should redirect to / when isAucation is true and aucation is null or when deleted", async () => {
-    const { aucationsStore } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: mockProfile,
-        aucation: null,
-        isAucation: false,
-        isAucationDeleted: false,
-      },
-    });
-
-    aucationsStore.setIsAucation(true);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(mockRouter.push).toHaveBeenCalledWith("/");
-
-    aucationsStore.setIsAucationDeleted(true);
-    await new Promise((r) => setTimeout(r, 10));
-    expect(mockRouter.push).toHaveBeenCalledWith("/");
-  });
-
-  it("should reload detail when route id changes", async () => {
-    const { aucationsStore } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: mockProfile,
-        aucation: mockAucation,
-      },
-    });
-
-    const setSpy = vi.spyOn(aucationsStore, "asyncSetAucationById").mockResolvedValue();
-    mockRoute.params.id = "99";
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(setSpy).toHaveBeenCalledWith("99");
-  });
-
-  it("should handle permissions for regular non-admin user", () => {
-    // 1. Regular user who is the author
-    const regularAuthorProfile = { id: 1, name: "Author User", role: "user" };
-    const { wrapper: wrapperAuthor } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: regularAuthorProfile,
-        aucation: mockAucation,
-      },
-    });
-    expect(wrapperAuthor.find('[data-testid="edit-detail-aucation-btn"]').exists()).toBe(true);
-
-    // 2. Regular user who is NOT the author
-    const regularOtherProfile = { id: 99, name: "Other User", role: "user" };
-    const { wrapper: wrapperOther } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: regularOtherProfile,
-        aucation: mockAucation,
-      },
-    });
-    expect(wrapperOther.find('[data-testid="edit-detail-aucation-btn"]').exists()).toBe(false);
-    expect(wrapperOther.find('[data-testid="delete-bid-btn-101"]').exists()).toBe(false);
-  });
-
-  it("should handle dismissing cancel bid dialog and handle isAucation true when auction exists", async () => {
-    const { wrapper, aucationsStore } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: mockProfile,
-        aucation: mockAucation,
-      },
-    });
-
-    const cancelBidSpy = vi.spyOn(aucationsStore, "asyncDeleteBid").mockResolvedValue();
-    vi.spyOn(toolsHelper, "showConfirmDialog").mockResolvedValue({ isConfirmed: false });
-
-    const cancelBtn = wrapper.find('[data-testid="delete-bid-btn-101"]');
-    await cancelBtn.trigger("click");
-    expect(cancelBidSpy).not.toHaveBeenCalled();
-
-    // Trigger isAucation true with aucation non-null
-    aucationsStore.setIsAucation(true);
-    await new Promise((r) => setTimeout(r, 10));
-
-    // Route param empty
-    mockRoute.params.id = "";
-    await new Promise((r) => setTimeout(r, 10));
-  });
-
-  it("should handle null profile in canManage and canCancelBid and zero bid amount", () => {
-    const { wrapper } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: null,
-        aucation: {
-          ...mockAucation,
-          bids: [{ id: 99, bid: 0, user: { id: 1 } }],
-        },
-      },
-    });
-
-    expect(wrapper.vm.canManage).toBe(false);
-    expect(wrapper.vm.canCancelBid({ user: { id: 1 } })).toBe(false);
-    expect(wrapper.vm.highestBid).toBe(0);
-
-    const { wrapper: wrapperNoAucation } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: mockProfile,
-        aucation: null,
-      },
-    });
-    expect(wrapperNoAucation.vm.bidsList).toEqual([]);
-
-    const { wrapper: wrapperStartBidNull } = renderWithProviders(DetailPage, {
-      preloadedState: {
-        profile: mockProfile,
-        aucation: { id: 88, title: "Test", start_bid: null, bids: [] },
-      },
-    });
-    expect(wrapperStartBidNull.vm.highestBid).toBe(0);
-  });
-});
+  it('deletes and goes home, or shows an error', async () => {
+    const { router } = await mount({ me: 1 })
+    const push = vi.spyOn(router, 'push')
+    showConfirmDialog.mockResolvedValue(true)
+    api.deleteAucation.mockResolvedValueOnce({ success: false, message: 'Tidak bisa' }).mockResolvedValueOnce({ success: true, message: 'Dihapus' })
+    await click('Hapus lelang')
+    await waitFor(() => expect(showErrorDialog).toHaveBeenCalledWith('Tidak bisa'))
+    await click('Hapus lelang')
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/'))
+  })
+})

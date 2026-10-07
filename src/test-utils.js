@@ -1,26 +1,20 @@
-import { mount } from "@vue/test-utils";
-import { createPinia, setActivePinia } from "pinia";
-import { createRouter, createMemoryHistory } from "vue-router";
+import { render } from '@testing-library/vue'
+import { createPinia, setActivePinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
 
-export function createMockPinia() {
-  const pinia = createPinia();
-  setActivePinia(pinia);
-  return pinia;
-}
+const stub = { render: () => null }
 
-export async function renderWithProviders(
-  component,
-  { props = {}, route = "/", routes, pinia = createMockPinia(), global = {} } = {}
-) {
+export function renderWithProviders(component, { route = '/', ...options } = {}) {
+  const pinia = createPinia()
+  setActivePinia(pinia)
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: routes || [{ path: "/:pathMatch(.*)*", component: { template: "<div />" } }],
-  });
-  router.push(route);
-  await router.isReady();
-  const wrapper = mount(component, {
-    props,
-    global: { ...global, plugins: [pinia, router, ...(global.plugins || [])] },
-  });
-  return { wrapper, router, pinia };
+    routes: [
+      { path: '/aucations/:aucationId', component: stub },
+      { path: '/:pathMatch(.*)*', component: stub },
+    ],
+  })
+  const utils = render(component, { global: { plugins: [pinia, router] }, ...options })
+  router.push(route)
+  return { router, pinia, ...utils }
 }

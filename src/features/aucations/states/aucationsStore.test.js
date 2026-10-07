@@ -1,49 +1,33 @@
-import { setActivePinia, createPinia } from "pinia";
-import { useAucationsStore } from "./aucationsStore.js";
-import * as api from "../api/aucationApi.js";
+import { setActivePinia, createPinia } from 'pinia'
+import { useAucationsStore } from './aucationsStore.js'
+import * as api from '../api/aucationApi.js'
 
-vi.mock("../api/aucationApi.js");
-vi.mock("../../../helpers/toolsHelper.js", () => ({ showSuccessDialog: vi.fn(), showErrorDialog: vi.fn() }));
+vi.mock('../api/aucationApi.js')
 
-describe("aucationsStore", () => {
-  beforeEach(() => setActivePinia(createPinia()));
+describe('aucationsStore', () => {
+  beforeEach(() => { setActivePinia(createPinia()); vi.resetAllMocks() })
 
-  it("fetchAucations sukses/gagal", async () => {
-    const s = useAucationsStore();
-    api.getAucations.mockResolvedValueOnce({ data: { aucations: [{ id: 1 }] } });
-    await s.fetchAucations();
-    expect(s.aucations).toHaveLength(1);
-    api.getAucations.mockResolvedValueOnce({ data: {} });
-    await s.fetchAucations();
-    expect(s.aucations).toEqual([]);
-    api.getAucations.mockRejectedValueOnce(new Error("x"));
-    await s.fetchAucations();
-    expect(s.aucations).toEqual([]);
-  });
-  it("fetchAucation sukses/gagal", async () => {
-    const s = useAucationsStore();
-    api.getAucation.mockResolvedValueOnce({ data: { aucation: { id: 1 } } });
-    expect(await s.fetchAucation(1)).toBe(true);
-    api.getAucation.mockRejectedValueOnce(new Error("x"));
-    expect(await s.fetchAucation(1)).toBe(false);
-    expect(s.aucation).toBeNull();
-  });
-  it("seluruh mutasi", async () => {
-    const s = useAucationsStore();
-    for (const fn of ["postAucation", "putAucation", "postAucationCover", "deleteAucation", "postBid", "deleteBid", "deleteAllAucations"]) {
-      api[fn].mockResolvedValue({ message: "ok" });
-    }
-    expect(await s.addAucation({})).toBe(true);
-    expect(s.isAucationAdded).toBe(true);
-    expect(await s.changeAucation(1, {})).toBe(true);
-    expect(await s.changeCover(1, {})).toBe(true);
-    expect(await s.deleteAucation(1)).toBe(true);
-    expect(await s.addBid(1, 5)).toBe(true);
-    expect(await s.deleteBid(1)).toBe(true);
-    expect(await s.deleteAllAucations()).toBe(true);
-    api.postBid.mockResolvedValue({});
-    await s.addBid(1, 5);
-    api.postBid.mockRejectedValueOnce(new Error("x"));
-    expect(await s.addBid(1, 5)).toBe(false);
-  });
-});
+  it('loads list and detail, ignoring failures', async () => {
+    const s = useAucationsStore()
+    api.getAucations.mockResolvedValueOnce({ success: true, data: { aucations: [1] } }).mockResolvedValueOnce({ success: false })
+    await s.loadAucations({}); await s.loadAucations({})
+    expect(s.aucations).toEqual([1])
+    api.getAucation.mockResolvedValueOnce({ success: false }).mockResolvedValueOnce({ success: true, data: { aucation: { id: 2 } } })
+    await s.loadAucation(2)
+    expect(s.aucation).toBeNull()
+    await s.loadAucation(2)
+    expect(s.aucation).toEqual({ id: 2 })
+  })
+
+  it('tracks mutation flags', async () => {
+    const s = useAucationsStore()
+    api.addAucation.mockResolvedValue({ success: true })
+    api.changeAucation.mockResolvedValue({ success: true })
+    api.changeCover.mockResolvedValue({ success: true })
+    api.deleteAucation.mockResolvedValue({ success: false })
+    api.addBid.mockResolvedValue({ success: true })
+    api.deleteBid.mockResolvedValue({ success: true })
+    await s.addAucation({}); await s.changeAucation(1, {}); await s.changeCover(1, {}); await s.removeAucation(1); await s.placeBid(1, {}); await s.removeBid(1)
+    expect([s.isAucationAdd, s.isAucationChange, s.isAucationDelete, s.isBidAdd, s.isBidDelete]).toEqual([true, true, false, true, true])
+  })
+})

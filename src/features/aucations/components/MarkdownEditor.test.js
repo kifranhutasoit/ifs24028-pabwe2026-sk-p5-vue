@@ -1,72 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
-import MarkdownEditor from "./MarkdownEditor.vue";
+import { render, screen, fireEvent } from '@testing-library/vue'
+import MarkdownEditor from './MarkdownEditor.vue'
 
-let mockEvents = {};
-const mockGetMarkdown = vi.fn(() => "mock editor text");
-const mockSetMarkdown = vi.fn();
-const mockDestroy = vi.fn();
-
-vi.mock("@toast-ui/editor", () => {
-  return {
-    default: vi.fn().mockImplementation(function (options) {
-      mockEvents = options.events || {};
-      this.getMarkdown = mockGetMarkdown;
-      this.setMarkdown = mockSetMarkdown;
-      this.destroy = mockDestroy;
-    }),
-  };
-});
-
-describe("MarkdownEditor", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockEvents = {};
-  });
-
-  it("should initialize Editor with props and handle change event", async () => {
-    const wrapper = mount(MarkdownEditor, {
-      props: {
-        modelValue: "initial text",
-        placeholder: "Tulis...",
-        height: "300px",
-        textareaTestId: "custom-editor-textarea",
-      },
-    });
-
-    expect(wrapper.find('[data-testid="custom-editor-textarea"]').exists()).toBe(true);
-
-    if (mockEvents.change) {
-      mockEvents.change();
-    }
-    expect(wrapper.emitted("update:modelValue")).toBeTruthy();
-    expect(wrapper.emitted("update:modelValue")?.[0]).toEqual(["mock editor text"]);
-    expect(wrapper.emitted("change")?.[0]).toEqual(["mock editor text"]);
-
-    await wrapper.setProps({ modelValue: "mock editor text" });
-
-    await wrapper.setProps({ modelValue: "updated prop" });
-    expect(mockSetMarkdown).toHaveBeenCalledWith("updated prop");
-
-    await wrapper.setProps({ modelValue: "" });
-    expect(mockSetMarkdown).toHaveBeenCalledWith("");
-
-    wrapper.unmount();
-    expect(mockDestroy).toHaveBeenCalled();
-  });
-
-  it("should handle onTextareaInput fallback", async () => {
-    const wrapper = mount(MarkdownEditor, {
-      props: {
-        modelValue: "",
-      },
-    });
-
-    const textarea = wrapper.find("textarea");
-    await textarea.setValue("manual input");
-
-    expect(wrapper.emitted("update:modelValue")).toBeTruthy();
-    expect(wrapper.emitted("change")).toBeTruthy();
-    expect(mockSetMarkdown).toHaveBeenCalledWith("manual input");
-  });
-});
+it('emits typed text and toolbar snippets and previews them', async () => {
+  const { emitted } = render(MarkdownEditor, { props: { id: 'd', label: 'Deskripsi', modelValue: 'a' } })
+  await fireEvent.update(screen.getByLabelText('Deskripsi'), 'xyz')
+  expect(emitted()['update:modelValue'].at(-1)).toEqual(['xyz'])
+  for (const name of ['Tebal', 'Miring', 'Daftar']) await fireEvent.click(screen.getByRole('button', { name }))
+  expect(emitted()['update:modelValue'].slice(-3).map((e) => e[0])).toEqual(['a**teks tebal**', 'a*teks miring*', 'a\n- butir'])
+  expect(screen.getByRole('region', { name: 'Pratinjau' })).toHaveTextContent('a')
+})

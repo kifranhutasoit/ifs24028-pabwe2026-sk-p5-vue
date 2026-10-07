@@ -1,35 +1,41 @@
-import { apiFetch, getAccessToken, putAccessToken, removeAccessToken } from "./apiHelper.js";
+import { getAccessToken, putAccessToken, removeAccessToken, fetchWithAuth, requestJson, normalizeResponse } from './apiHelper.js'
 
-const mockFetch = (ok, json) => vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok, json: async () => json }));
+describe('apiHelper', () => {
+  beforeEach(() => vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ status: 'success' }) })))
+  afterEach(() => vi.unstubAllGlobals())
 
-describe("apiHelper", () => {
-  it("menyimpan, membaca, dan menghapus token", () => {
-    putAccessToken("abc");
-    expect(getAccessToken()).toBe("abc");
-    removeAccessToken();
-    expect(getAccessToken()).toBeNull();
-  });
+  it('stores, reads and removes token', () => {
+    putAccessToken('abc')
+    expect(getAccessToken()).toBe('abc')
+    removeAccessToken()
+    expect(getAccessToken()).toBeNull()
+  })
 
-  it("mengirim GET dengan query dan Authorization", async () => {
-    putAccessToken("tok");
-    mockFetch(true, { success: true, data: {} });
-    await apiFetch("/x", { params: { a: 1, b: "", c: null, d: undefined } });
-    const [url, opts] = fetch.mock.calls[0];
-    expect(url).toContain("/x?a=1");
-    expect(url).not.toContain("b=");
-    expect(opts.headers.Authorization).toBe("Bearer tok");
-  });
+  it('sends no Authorization header without token', async () => {
+    await fetchWithAuth('/x')
+    expect(fetch.mock.calls[0][1].headers).toEqual({ Accept: 'application/json', 'Content-Type': 'application/json' })
+  })
 
-  it("mengirim JSON dan FormData, serta melempar error", async () => {
-    mockFetch(true, { success: true });
-    await apiFetch("/x", { method: "POST", body: { a: 1 } });
-    expect(fetch.mock.calls[0][1].headers["Content-Type"]).toBe("application/json");
-    const form = new FormData();
-    await apiFetch("/x", { method: "POST", body: form, isForm: true });
-    expect(fetch.mock.calls[1][1].body).toBe(form);
-    mockFetch(false, { message: "gagal" });
-    await expect(apiFetch("/x")).rejects.toThrow("gagal");
-    mockFetch(true, { success: false });
-    await expect(apiFetch("/x")).rejects.toThrow("Terjadi kesalahan pada server");
-  });
-});
+  it('adds bearer token and merges custom headers', async () => {
+    putAccessToken('abc')
+    await fetchWithAuth('/x', { method: 'POST', headers: { 'X-A': '1' } })
+    expect(fetch.mock.calls[0][1].headers).toEqual({
+      Accept: 'application/json', 'Content-Type': 'application/json', Authorization: 'Bearer abc', 'X-A': '1',
+    })
+  })
+
+  it('drops content type for FormData', async () => {
+    await fetchWithAuth('/x', { body: new FormData() })
+    expect(fetch.mock.calls[0][1].headers).toEqual({ Accept: 'application/json' })
+  })
+
+  it('requestJson prefixes base url and parses json', async () => {
+    expect(await requestJson('/users')).toEqual({ status: 'success', success: true })
+    expect(fetch.mock.calls[0][0]).toBe('https://open-api.delcom.org/api/v1/users')
+  })
+
+  it('marks only status "success" as success', () => {
+    expect(normalizeResponse({ status: 'fail' }).success).toBe(false)
+    expect(normalizeResponse({ status: 'success' }).success).toBe(true)
+  })
+})

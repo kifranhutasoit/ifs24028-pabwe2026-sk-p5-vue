@@ -1,7 +1,14 @@
-import { apiFetch } from "../../../helpers/apiHelper.js";
+import { normalizeResponse, requestJson } from '../../../helpers/apiHelper.js'
 
-export const postLogin = ({ email, password }) =>
-  apiFetch("/auth/login", { method: "POST", body: { email, password } });
+const post = async (path, body) => {
+  const res = await fetch(`${DELCOM_BASEURL}${path}`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return normalizeResponse(await res.json())
+}
 
-export const postRegister = ({ name, email, password }) =>
-  apiFetch("/auth/register", { method: "POST", body: { name, email, password } });
+export const login = ({ email, password }) => post('/auth/login', { email, password })
+export const register = ({ name, email, password }) => post('/auth/register', { name, email, password })
+export const logout = () => requestJson('/auth/logout', { method: 'POST' })

@@ -1,41 +1,46 @@
-import { setActivePinia, createPinia } from "pinia";
-import { useUsersStore } from "./usersStore.js";
-import * as api from "../api/userApi.js";
+import { setActivePinia, createPinia } from 'pinia'
+import { useUsersStore } from './usersStore.js'
+import * as api from '../api/userApi.js'
 
-vi.mock("../api/userApi.js");
-vi.mock("../../../helpers/toolsHelper.js", () => ({ showSuccessDialog: vi.fn(), showErrorDialog: vi.fn() }));
+vi.mock('../api/userApi.js')
+const ok = (data) => ({ success: true, data })
+const fail = { success: false }
 
-describe("usersStore", () => {
-  beforeEach(() => setActivePinia(createPinia()));
+describe('usersStore', () => {
+  beforeEach(() => { setActivePinia(createPinia()); vi.resetAllMocks() })
 
-  it("fetchUsers", async () => {
-    const s = useUsersStore();
-    api.getUsers.mockResolvedValueOnce({ data: { users: [{ id: 1 }] } });
-    await s.fetchUsers();
-    expect(s.users).toHaveLength(1);
-    api.getUsers.mockResolvedValueOnce({ data: {} });
-    await s.fetchUsers();
-    expect(s.users).toEqual([]);
-    api.getUsers.mockRejectedValueOnce(new Error("x"));
-    await s.fetchUsers();
-  });
-  it("fetchProfile", async () => {
-    const s = useUsersStore();
-    api.getMe.mockResolvedValueOnce({ data: { user: { id: 1 } } });
-    expect(await s.fetchProfile()).toBe(true);
-    api.getMe.mockRejectedValueOnce(new Error("x"));
-    expect(await s.fetchProfile()).toBe(false);
-    expect(s.profile).toBeNull();
-  });
-  it("mutasi profil", async () => {
-    const s = useUsersStore();
-    api.getMe.mockResolvedValue({ data: { user: { id: 1 } } });
-    api.putMe.mockResolvedValue({ message: "ok" });
-    api.postMePhoto.mockResolvedValue({});
-    api.putMePassword.mockRejectedValueOnce(new Error("salah"));
-    expect(await s.changeProfile({})).toBe(true);
-    expect(await s.changePhoto({})).toBe(true);
-    expect(await s.changePassword({})).toBe(false);
-    expect(s.isProfileChanged).toBe(false);
-  });
-});
+  it('loads users on success and ignores failure', async () => {
+    const s = useUsersStore()
+    api.getUsers.mockResolvedValueOnce(ok({ users: [{ id: 1 }] }))
+    await s.loadUsers()
+    expect(s.users).toEqual([{ id: 1 }])
+    api.getUsers.mockResolvedValueOnce(fail)
+    await s.loadUsers()
+    expect(s.users).toEqual([{ id: 1 }])
+  })
+
+  it('loads profile on success and ignores failure', async () => {
+    const s = useUsersStore()
+    api.getMe.mockResolvedValueOnce(fail)
+    await s.loadProfile()
+    expect(s.profile).toBeNull()
+    api.getMe.mockResolvedValueOnce(ok({ user: { name: 'A' } }))
+    await s.loadProfile()
+    expect(s.profile).toEqual({ name: 'A' })
+  })
+
+  it('reloads profile after successful save and photo upload only', async () => {
+    const s = useUsersStore()
+    api.getMe.mockResolvedValue(ok({ user: { name: 'B' } }))
+    api.updateMe.mockResolvedValueOnce(ok({})).mockResolvedValueOnce(fail)
+    api.uploadPhoto.mockResolvedValueOnce(ok({})).mockResolvedValueOnce(fail)
+    await s.saveProfile({}); await s.saveProfile({})
+    await s.savePhoto({}); await s.savePhoto({})
+    expect(api.getMe).toHaveBeenCalledTimes(2)
+  })
+
+  it('changes password', async () => {
+    api.changePassword.mockResolvedValue(ok({}))
+    expect((await useUsersStore().savePassword({})).success).toBe(true)
+  })
+})

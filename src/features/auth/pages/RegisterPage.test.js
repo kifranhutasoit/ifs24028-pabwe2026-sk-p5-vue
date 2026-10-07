@@ -1,78 +1,35 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import RegisterPage from "./RegisterPage.vue";
-import { renderWithProviders } from "../../../test-utils";
+import { fireEvent, waitFor } from '@testing-library/vue'
+import { renderWithProviders } from '../../../test-utils.js'
+import RegisterPage from './RegisterPage.vue'
+import * as api from '../api/authApi.js'
+import { showErrorDialog, showSuccessDialog } from '../../../helpers/toolsHelper.js'
 
-const mockRouter = {
-  push: vi.fn(),
-};
+vi.mock('../api/authApi.js')
+vi.mock('../../../helpers/toolsHelper.js', () => ({
+  showErrorDialog: vi.fn(), showSuccessDialog: vi.fn().mockResolvedValue(),
+}))
 
-vi.mock("vue-router", async () => {
-  const actual = await vi.importActual("vue-router");
-  return {
-    ...actual,
-    useRouter: () => mockRouter,
-  };
-});
+async function fillAndSubmit() {
+  await fireEvent.update(document.querySelector('#register-name-input'), 'Nama')
+  await fireEvent.update(document.querySelector('#register-email-input'), 'a@b.c')
+  await fireEvent.update(document.querySelector('#register-password-input'), 'secret')
+  await fireEvent.click(document.querySelector('#register-submit-button'))
+}
 
-describe("RegisterPage", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+describe('RegisterPage', () => {
+  it('goes to login after success', async () => {
+    api.register.mockResolvedValue({ success: true, message: 'Dibuat' })
+    const { router } = renderWithProviders(RegisterPage)
+    const push = vi.spyOn(router, 'push')
+    await fillAndSubmit()
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/auth/login'))
+    expect(showSuccessDialog).toHaveBeenCalledWith('Dibuat')
+  })
 
-  it("should render inputs and dispatch registration", async () => {
-    const { wrapper, authStore } = renderWithProviders(RegisterPage, {
-      preloadedState: {
-        isAuthRegister: false,
-      },
-    });
-
-    const registerSpy = vi
-      .spyOn(authStore, "asyncSetIsAuthRegister")
-      .mockReturnValue(Promise.resolve());
-
-    const nameInput = wrapper.find('[data-testid="register-name-input"]');
-    const emailInput = wrapper.find('[data-testid="register-email-input"]');
-    const passwordInput = wrapper.find('[data-testid="register-password-input"]');
-    const submitBtn = wrapper.find('[data-testid="register-submit-button"]');
-
-    await nameInput.setValue("Delcom User");
-    await emailInput.setValue("user@delcom.org");
-    await passwordInput.setValue("password123");
-    await submitBtn.trigger("submit");
-
-    expect(registerSpy).toHaveBeenCalledWith(
-      "Delcom User",
-      "user@delcom.org",
-      "password123"
-    );
-  });
-
-  it("should reset form fields and navigate to /auth/login on isAuthRegister success", async () => {
-    const { authStore } = renderWithProviders(RegisterPage, {
-      preloadedState: {
-        isAuthRegister: false,
-      },
-    });
-
-    authStore.setIsAuthRegister(true);
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(mockRouter.push).toHaveBeenCalledWith("/auth/login");
-  });
-
-  it("should handle error state when isAuthRegister is false while loading", async () => {
-    const { wrapper, authStore } = renderWithProviders(RegisterPage, {
-      preloadedState: {
-        isAuthRegister: null,
-      },
-    });
-
-    const submitBtn = wrapper.find('[data-testid="register-submit-button"]');
-    await submitBtn.trigger("submit");
-
-    authStore.setIsAuthRegister(false);
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(wrapper.find('[data-testid="register-submit-button"]').attributes("disabled")).toBeUndefined();
-  });
-});
+  it('shows error on failure', async () => {
+    api.register.mockResolvedValue({ success: false, message: 'Gagal' })
+    renderWithProviders(RegisterPage)
+    await fillAndSubmit()
+    await waitFor(() => expect(showErrorDialog).toHaveBeenCalledWith('Gagal'))
+  })
+})

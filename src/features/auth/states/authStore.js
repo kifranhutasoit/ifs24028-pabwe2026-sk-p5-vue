@@ -1,52 +1,42 @@
-import { computed, ref } from "vue";
-import { defineStore } from "pinia";
-import { postLogin, postRegister } from "../api/authApi.js";
-import { getAccessToken, putAccessToken, removeAccessToken } from "../../../helpers/apiHelper.js";
-import { showErrorDialog, showSuccessDialog } from "../../../helpers/toolsHelper.js";
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import { login, register, logout } from '../api/authApi.js'
+import { getAccessToken, putAccessToken, removeAccessToken } from '../../../helpers/apiHelper.js'
 
-export const useAuthStore = defineStore("auth", () => {
-  const token = ref(getAccessToken());
-  const isAuthLogin = ref(false);
-  const isAuthRegister = ref(false);
-  const isAuthLogout = ref(false);
-  const isLoggedIn = computed(() => Boolean(token.value));
+export const useAuthStore = defineStore('auth', () => {
+  const token = ref(getAccessToken())
+  const profile = ref(null)
+  const isAuthLogin = ref(false)
+  const isAuthRegister = ref(false)
+  const isAuthLogout = ref(false)
 
-  async function login(email, password) {
-    isAuthLogin.value = true;
+  async function loginUser(payload) {
+    const res = await login(payload)
+    isAuthLogin.value = Boolean(res.success)
+    if (res.success) {
+      token.value = res.data.token
+      putAccessToken(res.data.token)
+    }
+    return res
+  }
+
+  async function registerUser(payload) {
+    const res = await register(payload)
+    isAuthRegister.value = Boolean(res.success)
+    return res
+  }
+
+  async function logoutUser() {
     try {
-      const res = await postLogin({ email, password });
-      putAccessToken(res.data.token);
-      token.value = res.data.token;
-      await showSuccessDialog(res.message || "Login berhasil");
-      return true;
-    } catch (error) {
-      await showErrorDialog(error.message);
-      return false;
+      await logout()
     } finally {
-      isAuthLogin.value = false;
+      removeAccessToken()
+      token.value = null
+      profile.value = null
+      isAuthLogin.value = false
+      isAuthLogout.value = true
     }
   }
 
-  async function register(name, email, password) {
-    isAuthRegister.value = true;
-    try {
-      const res = await postRegister({ name, email, password });
-      await showSuccessDialog(res.message || "Registrasi berhasil, silakan masuk");
-      return true;
-    } catch (error) {
-      await showErrorDialog(error.message);
-      return false;
-    } finally {
-      isAuthRegister.value = false;
-    }
-  }
-
-  function logout() {
-    isAuthLogout.value = true;
-    removeAccessToken();
-    token.value = null;
-    isAuthLogout.value = false;
-  }
-
-  return { token, isLoggedIn, isAuthLogin, isAuthRegister, isAuthLogout, login, register, logout };
-});
+  return { token, profile, isAuthLogin, isAuthRegister, isAuthLogout, loginUser, registerUser, logoutUser }
+})

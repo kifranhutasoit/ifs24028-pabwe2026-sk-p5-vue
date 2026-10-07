@@ -1,62 +1,29 @@
-// SweetAlert2 hanya diunduh saat dialog pertama kali dipanggil,
-// sehingga tidak ikut dimuat di halaman awal (mengurangi unused JavaScript).
-const loadSwal = async () => (await import("sweetalert2")).default;
+import Swal from 'sweetalert2'
 
-export const showSuccessDialog = async (message) => {
-  const Swal = await loadSwal();
-  return Swal.fire({ icon: "success", title: "Berhasil", text: message, timer: 1800, showConfirmButton: false });
-};
-
-export const showErrorDialog = async (message) => {
-  const Swal = await loadSwal();
-  return Swal.fire({ icon: "error", title: "Gagal", text: message });
-};
-
-export const showWarningDialog = async (message) => {
-  const Swal = await loadSwal();
-  return Swal.fire({ icon: "warning", title: "Perhatian", text: message });
-};
-
-export const showConfirmDialog = async (message) => {
-  const Swal = await loadSwal();
+export const showSuccessDialog = (msg) => Swal.fire({ icon: 'success', title: 'Berhasil', text: msg })
+export const showErrorDialog = (msg) => Swal.fire({ icon: 'error', title: 'Gagal', text: msg })
+export const showConfirmDialog = async (msg) => {
   const result = await Swal.fire({
-    icon: "question",
-    title: "Konfirmasi",
-    text: message,
-    showCancelButton: true,
-    confirmButtonText: "Ya",
-    cancelButtonText: "Batal",
-  });
-  return result.isConfirmed;
-};
+    icon: 'question', title: 'Konfirmasi', text: msg,
+    showCancelButton: true, confirmButtonText: 'Ya', cancelButtonText: 'Batal',
+  })
+  return result.isConfirmed
+}
 
-export const formatRupiah = (value) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(
-    Number(value) || 0
-  );
+export const formatRupiah = (amount) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
+    .format(amount).replaceAll('\u00a0', ' ')
 
-export const formatDate = (value) => {
-  if (!value) return "-";
-  return new Date(value).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
-};
+export const formatDate = (dateString) =>
+  new Date(dateString.replace(' ', 'T')).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
 
-/** "2026-10-10T10:00" -> "2026-10-10 10:00:00" */
-export const toApiDate = (value) => (value ? `${value.replace("T", " ")}:00` : "");
+export const toApiTimestamp = (value) => `${value.replace('T', ' ')}:00`
+export const toInputTimestamp = (value) => value.slice(0, 16).replace(' ', 'T')
 
-/** Nilai tawaran tertinggi (fallback ke harga awal) */
-export const getHighestBid = (aucation) => {
-  const bids = (aucation?.bids || []).map((b) => Number(b.bid) || 0);
-  return Math.max(Number(aucation?.start_bid) || 0, ...bids);
-};
+export const photoUrl = (photo) => {
+  if (!photo) return ''
+  if (/^https?:\/\//.test(photo)) return photo
+  return `${new URL(DELCOM_BASEURL).origin}/${photo}`
+}
 
-export const isAucationClosed = (aucation, now = Date.now()) =>
-  Boolean(aucation?.is_closed) || (aucation?.closed_at ? new Date(aucation.closed_at).getTime() <= now : false);
-
-export const countdownText = (closedAt, now = Date.now()) => {
-  const diff = new Date(closedAt).getTime() - now;
-  if (!closedAt || diff <= 0) return "Ditutup";
-  const d = Math.floor(diff / 86400000);
-  const h = Math.floor((diff % 86400000) / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  return d > 0 ? `${d} hari ${h} jam lagi` : `${h} jam ${m} menit lagi`;
-};
+export const isClosedAt = (value) => new Date(value.replace(' ', 'T')) <= new Date()

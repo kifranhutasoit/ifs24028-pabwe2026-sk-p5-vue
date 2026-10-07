@@ -1,43 +1,28 @@
 <script setup>
-import { onBeforeUnmount, ref } from "vue";
-import ModalShell from "./ModalShell.vue";
-import { useAucationsStore } from "../states/aucationsStore.js";
-import { showWarningDialog } from "../../../helpers/toolsHelper.js";
+import ModalShell from './ModalShell.vue'
+import { useAucationsStore } from '../states/aucationsStore.js'
+import { showSuccessDialog, showErrorDialog } from '../../../helpers/toolsHelper.js'
 
-const props = defineProps({ aucation: { type: Object, required: true } });
-const emit = defineEmits(["close", "done"]);
-const store = useAucationsStore();
-const file = ref(null);
-const preview = ref(props.aucation.cover || "");
-let objectUrl = null;
+const props = defineProps({ id: { type: String, required: true } })
+const emit = defineEmits(['close', 'saved'])
+const store = useAucationsStore()
 
-function onFile(e) {
-  file.value = e.target.files[0] || null;
-  if (objectUrl) URL.revokeObjectURL(objectUrl);
-  if (file.value) {
-    objectUrl = URL.createObjectURL(file.value);
-    preview.value = objectUrl;
-  }
-}
-onBeforeUnmount(() => objectUrl && URL.revokeObjectURL(objectUrl));
-
-async function submit() {
-  if (!file.value) {
-    await showWarningDialog("Pilih gambar terlebih dahulu");
-    return;
-  }
-  if (await store.changeCover(props.aucation.id, file.value)) emit("done");
+async function submit(event) {
+  const res = await store.changeCover(props.id, event.target.files[0])
+  if (res.success) {
+    showSuccessDialog(res.message)
+    emit('saved')
+    emit('close')
+  } else showErrorDialog(res.message)
 }
 </script>
 
 <template>
-  <ModalShell title="Ganti Cover" @close="emit('close')">
-    <form class="space-y-3" @submit.prevent="submit">
-      <img v-if="preview" :src="preview" alt="Pratinjau cover" class="h-48 w-full rounded-xl object-cover" data-testid="cover-preview" />
-      <input type="file" accept="image/*" data-testid="cover-file" @change="onFile" />
-      <button type="submit" :disabled="store.isAucationChangeCover" class="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-        {{ store.isAucationChangeCover ? "Mengunggah..." : "Unggah Cover" }}
-      </button>
-    </form>
+  <ModalShell title="Ubah sampul" @close="emit('close')">
+    <label class="flex flex-col items-center gap-1 rounded-xl border-2 border-dashed border-brand/50 p-8 text-center transition hover:bg-brand/5 focus-within:ring-2 focus-within:ring-brand">
+      <input type="file" accept="image/*" aria-label="File sampul" class="sr-only" @change="submit" />
+      <span class="font-semibold text-brand">Klik untuk memilih gambar sampul</span>
+      <span class="text-sm text-stone-700">Format JPG atau PNG. Gambar langsung diunggah setelah dipilih.</span>
+    </label>
   </ModalShell>
 </template>
