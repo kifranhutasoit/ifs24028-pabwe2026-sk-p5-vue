@@ -41,6 +41,7 @@ const usersStore = useUsersStore();
 const authStore = useAuthStore();
 
 const isSidebarOpen = ref(false);
+let retryCount = 0;
 
 onMounted(() => {
   const authToken = apiHelper.getAccessToken();
@@ -53,14 +54,23 @@ onMounted(() => {
 
 watch(
   () => [usersStore.isProfile, usersStore.profile],
-  ([isProfile, profile]) => {
-    if (isProfile) {
-      usersStore.setIsProfile(false);
-      if (!profile) {
-        apiHelper.putAccessToken("");
-        router.push("/auth/login");
-      }
+  async ([isProfile, profile]) => {
+    if (!isProfile) return;
+    usersStore.setIsProfile(false);
+    if (profile) {
+      retryCount = 0;
+      return;
     }
+
+    if (retryCount < 2 && apiHelper.getAccessToken()) {
+      retryCount += 1;
+      await new Promise((r) => setTimeout(r, 800));
+      usersStore.asyncSetProfile();
+      return;
+    }
+
+    apiHelper.putAccessToken("");
+    router.push("/auth/login");
   }
 );
 
