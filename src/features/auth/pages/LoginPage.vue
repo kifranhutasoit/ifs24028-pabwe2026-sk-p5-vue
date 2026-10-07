@@ -72,3 +72,60 @@
     </div>
   </form>
 </template>
+
+<script setup>
+import { ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import { Mail, Lock, Loader2, LogIn } from "lucide-vue-next";
+import { useAuthStore } from "../states/authStore";
+import { useUsersStore } from "../../users/states/usersStore";
+import apiHelper from "../../../helpers/apiHelper";
+
+const router = useRouter();
+const authStore = useAuthStore();
+const usersStore = useUsersStore();
+
+const email = ref("");
+const password = ref("");
+const loading = ref(false);
+
+watch(
+  () => authStore.isAuthLogin,
+  (isAuthLogin) => {
+    if (isAuthLogin === true) {
+      const authToken = apiHelper.getAccessToken();
+      if (authToken) {
+        usersStore.asyncSetProfile();
+      } else {
+        loading.value = false;
+        authStore.setIsAuthLogin(false);
+      }
+    }
+  }
+);
+
+watch(
+  () => usersStore.isProfile,
+  (isProfile) => {
+    if (isProfile) {
+      loading.value = false;
+      authStore.setIsAuthLogin(false);
+      usersStore.setIsProfile(false);
+    }
+  }
+);
+
+async function onSubmitHandler() {
+  loading.value = true;
+  try {
+    await authStore.asyncSetIsAuthLogin(email.value, password.value);
+    if (apiHelper.getAccessToken()) {
+      router.push("/");
+    } else {
+      loading.value = false;
+    }
+  } catch {
+    loading.value = false;
+  }
+}
+</script>
