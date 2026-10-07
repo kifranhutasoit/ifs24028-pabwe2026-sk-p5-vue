@@ -1,10 +1,19 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
+import { afterEach, vi } from "vitest";
 
-if (typeof document !== "undefined") {
-  if (!document.elementFromPoint) {
-    document.elementFromPoint = () => null;
-  }
-  if (!Range.prototype.getClientRects) {
-    Range.prototype.getClientRects = () => [];
-  }
-}
+window.matchMedia =
+  window.matchMedia ||
+  ((query) => ({
+    matches: false,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+  }));
+window.scrollTo = vi.fn();
+
+afterEach(() => {
+  localStorage.clear();
+  vi.clearAllMocks();
+});

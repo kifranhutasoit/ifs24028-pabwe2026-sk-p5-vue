@@ -1,97 +1,61 @@
+import { ref } from "vue";
 import { defineStore } from "pinia";
-import userApi from "../api/userApi";
-import { showErrorDialog, showSuccessDialog } from "../../../helpers/toolsHelper";
+import { getMe, getUsers, postMePhoto, putMe, putMePassword } from "../api/userApi.js";
+import { showErrorDialog, showSuccessDialog } from "../../../helpers/toolsHelper.js";
 
-export const useUsersStore = defineStore("users", {
-  state: () => ({
-    users: [],
-    user: null,
-    profile: null,
-    isProfile: false,
-    isChangeProfile: false,
-    isChangeProfilePhoto: false,
-    isChangeProfilePassword: false,
-  }),
-  actions: {
-    setUsers(users) {
-      this.users = users;
-    },
-    setUser(user) {
-      this.user = user;
-    },
-    setProfile(profile) {
-      this.profile = profile;
-    },
-    setIsProfile(status) {
-      this.isProfile = status;
-    },
-    setIsChangeProfile(status) {
-      this.isChangeProfile = status;
-    },
-    setIsChangeProfilePhoto(status) {
-      this.isChangeProfilePhoto = status;
-    },
-    setIsChangeProfilePassword(status) {
-      this.isChangeProfilePassword = status;
-    },
-    async asyncSetUsers() {
-      try {
-        const users = await userApi.getUsers();
-        this.setUsers(users);
-      } catch {
-        this.setUsers([]);
-      }
-    },
-    async asyncSetUserById(userId) {
-      try {
-        const user = await userApi.getUserById(userId);
-        this.setUser(user);
-      } catch {
-        this.setUser(null);
-      }
-    },
-    async asyncSetProfile() {
-      try {
-        const profile = await userApi.getProfile();
-        this.setProfile(profile);
-      } catch {
-        this.setProfile(null);
-      } finally {
-        this.setIsProfile(true);
-      }
-    },
-    async asyncPutProfile(name, email) {
-      try {
-        const profile = await userApi.putProfile(name, email);
-        this.setProfile(profile);
-        showSuccessDialog("Profil berhasil diperbarui!");
-        this.setIsChangeProfile(true);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsChangeProfile(false);
-      }
-    },
-    async asyncPostProfilePhoto(photo) {
-      try {
-        const message = await userApi.postProfilePhoto(photo);
-        showSuccessDialog(message || "Foto profil berhasil diperbarui!");
-        const profile = await userApi.getProfile();
-        this.setProfile(profile);
-        this.setIsChangeProfilePhoto(true);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsChangeProfilePhoto(false);
-      }
-    },
-    async asyncPutProfilePassword(oldPassword, newPassword, newPasswordConfirmation) {
-      try {
-        const message = await userApi.putProfilePassword(oldPassword, newPassword, newPasswordConfirmation);
-        showSuccessDialog(message || "Kata sandi berhasil diperbarui!");
-        this.setIsChangeProfilePassword(true);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsChangeProfilePassword(false);
-      }
-    },
-  },
+export const useUsersStore = defineStore("users", () => {
+  const users = ref([]);
+  const user = ref(null);
+  const profile = ref(null);
+  const isUsers = ref(false);
+  const isProfile = ref(false);
+  const isProfileChange = ref(false);
+  const isProfileChanged = ref(false);
+
+  async function fetchUsers() {
+    isUsers.value = true;
+    try {
+      users.value = (await getUsers()).data.users || [];
+    } catch (error) {
+      await showErrorDialog(error.message);
+    } finally {
+      isUsers.value = false;
+    }
+  }
+
+  async function fetchProfile() {
+    isProfile.value = true;
+    try {
+      profile.value = (await getMe()).data.user;
+      return true;
+    } catch (error) {
+      profile.value = null;
+      return false;
+    } finally {
+      isProfile.value = false;
+    }
+  }
+
+  async function mutate(fn) {
+    isProfileChange.value = true;
+    isProfileChanged.value = false;
+    try {
+      const res = await fn();
+      isProfileChanged.value = true;
+      await showSuccessDialog(res.message || "Berhasil diperbarui");
+      await fetchProfile();
+      return true;
+    } catch (error) {
+      await showErrorDialog(error.message);
+      return false;
+    } finally {
+      isProfileChange.value = false;
+    }
+  }
+
+  const changeProfile = (payload) => mutate(() => putMe(payload));
+  const changePhoto = (file) => mutate(() => postMePhoto(file));
+  const changePassword = (payload) => mutate(() => putMePassword(payload));
+
+  return { users, user, profile, isUsers, isProfile, isProfileChange, isProfileChanged, fetchUsers, fetchProfile, changeProfile, changePhoto, changePassword };
 });

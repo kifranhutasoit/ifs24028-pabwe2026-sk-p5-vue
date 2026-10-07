@@ -1,46 +1,18 @@
-<template>
-  <div ref="viewerContainer" class="toastui-editor-viewer-wrapper" data-testid="markdown-viewer"></div>
-</template>
-
 <script setup>
-import { ref, onMounted, watch, onBeforeUnmount } from "vue";
-import Viewer from "@toast-ui/editor/dist/toastui-editor-viewer";
+import { onMounted, ref, watch } from "vue";
+import Editor from "@toast-ui/editor";
 import "@toast-ui/editor/dist/toastui-editor-viewer.css";
 
-const props = defineProps({
-  content: {
-    type: String,
-    default: "",
-  },
-});
-
-const viewerContainer = ref(null);
-let viewerInstance = null;
+const props = defineProps({ value: { type: String, default: "" } });
+const el = ref(null);
+let viewer;
 
 onMounted(() => {
-  viewerInstance = new Viewer({
-    el: viewerContainer.value,
-    initialValue: props.content || "",
-  });
+  viewer = Editor.factory({ el: el.value, viewer: true, initialValue: props.value });
 });
-
-watch(
-  () => props.content,
-  (newContent) => {
-    viewerInstance.setMarkdown(newContent || "");
-  }
-);
-
-onBeforeUnmount(() => {
-  viewerInstance.destroy();
-  viewerInstance = null;
-});
+watch(() => props.value, (v) => viewer?.setMarkdown(v));
 </script>
 
-<style>
-.toastui-editor-viewer-wrapper .toastui-editor-contents {
-  font-family: inherit;
-  font-size: 0.95rem;
-  color: #475569;
-}
-</style>
+<template>
+  <div ref="el" data-testid="markdown-viewer" />
+</template>

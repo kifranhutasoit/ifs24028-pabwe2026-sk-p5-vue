@@ -1,17 +1,13 @@
 import { ref } from "vue";
 
-export default function useInput(defaultValue = "") {
-  const value = ref(defaultValue);
-
-  function handleValueChange(event) {
-    value.value = event?.target?.value !== undefined ? event.target.value : event;
-  }
-
-  return [
-    value,
-    handleValueChange,
-    (val) => {
-      value.value = val;
-    },
-  ];
+/** Composable untuk two-way binding input: const [value, onChange, setValue] = useInput("") */
+export function useInput(initialValue = "") {
+  const value = ref(initialValue);
+  const onChange = (event) => {
+    value.value = event.target.value;
+  };
+  const setValue = (next) => {
+    value.value = next;
+  };
+  return [value, onChange, setValue];
 }

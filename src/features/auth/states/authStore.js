@@ -1,53 +1,52 @@
+import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import authApi from "../api/authApi";
-import apiHelper from "../../../helpers/apiHelper";
-import { showErrorDialog, showSuccessDialog } from "../../../helpers/toolsHelper";
+import { postLogin, postRegister } from "../api/authApi.js";
+import { getAccessToken, putAccessToken, removeAccessToken } from "../../../helpers/apiHelper.js";
+import { showErrorDialog, showSuccessDialog } from "../../../helpers/toolsHelper.js";
 
-export const useAuthStore = defineStore("auth", {
-  state: () => ({
-    isAuthLogin: false,
-    isAuthRegister: false,
-    isAuthLogout: false,
-  }),
-  actions: {
-    setIsAuthLogin(value) {
-      this.isAuthLogin = value;
-    },
-    setIsAuthRegister(value) {
-      this.isAuthRegister = value;
-    },
-    setIsAuthLogout(value) {
-      this.isAuthLogout = value;
-    },
-    async asyncSetIsAuthLogin(email, password) {
-      try {
-        const data = await authApi.postLogin(email, password);
-        apiHelper.putAccessToken(data.token);
-        this.setIsAuthLogin(true);
-      } catch (error) {
-        this.setIsAuthLogin(false);
-        showErrorDialog(error.message);
-      }
-    },
-    async asyncSetIsAuthRegister(name, email, password) {
-      try {
-        const message = await authApi.postRegister(name, email, password);
-        this.setIsAuthRegister(true);
-        showSuccessDialog(message);
-      } catch (error) {
-        this.setIsAuthRegister(false);
-        showErrorDialog(error.message);
-      }
-    },
-    async asyncSetIsAuthLogout() {
-      try {
-        await authApi.postLogout();
-      } catch {
-        // Still proceed with clearing token locally even if server error
-      } finally {
-        apiHelper.putAccessToken("");
-        this.setIsAuthLogout(true);
-      }
-    },
-  },
+export const useAuthStore = defineStore("auth", () => {
+  const token = ref(getAccessToken());
+  const isAuthLogin = ref(false);
+  const isAuthRegister = ref(false);
+  const isAuthLogout = ref(false);
+  const isLoggedIn = computed(() => Boolean(token.value));
+
+  async function login(email, password) {
+    isAuthLogin.value = true;
+    try {
+      const res = await postLogin({ email, password });
+      putAccessToken(res.data.token);
+      token.value = res.data.token;
+      await showSuccessDialog(res.message || "Login berhasil");
+      return true;
+    } catch (error) {
+      await showErrorDialog(error.message);
+      return false;
+    } finally {
+      isAuthLogin.value = false;
+    }
+  }
+
+  async function register(name, email, password) {
+    isAuthRegister.value = true;
+    try {
+      const res = await postRegister({ name, email, password });
+      await showSuccessDialog(res.message || "Registrasi berhasil, silakan masuk");
+      return true;
+    } catch (error) {
+      await showErrorDialog(error.message);
+      return false;
+    } finally {
+      isAuthRegister.value = false;
+    }
+  }
+
+  function logout() {
+    isAuthLogout.value = true;
+    removeAccessToken();
+    token.value = null;
+    isAuthLogout.value = false;
+  }
+
+  return { token, isLoggedIn, isAuthLogin, isAuthRegister, isAuthLogout, login, register, logout };
 });

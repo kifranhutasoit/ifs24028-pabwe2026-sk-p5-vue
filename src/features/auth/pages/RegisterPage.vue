@@ -1,100 +1,109 @@
+<script setup>
+import { useRouter } from "vue-router";
+import { Lock, Mail, User, UserPlus } from "lucide-vue-next";
+import { useAuthStore } from "../states/authStore.js";
+import { useInput } from "../../../hooks/useInput.js";
+import { showWarningDialog } from "../../../helpers/toolsHelper.js";
+
+const router = useRouter();
+const auth = useAuthStore();
+const [name, onName] = useInput("");
+const [email, onEmail] = useInput("");
+const [password, onPassword] = useInput("");
+
+async function submit() {
+  if (!name.value || !email.value || !password.value) {
+    await showWarningDialog("Semua kolom wajib diisi");
+    return;
+  }
+  if (password.value.length < 6) {
+    await showWarningDialog("Kata sandi minimal 6 karakter");
+    return;
+  }
+  if (await auth.register(name.value, email.value, password.value))
+    router.replace("/auth/login");
+}
+</script>
+
 <template>
-  <form @submit.prevent="onSubmitHandler" class="space-y-4">
+  <form class="space-y-4" @submit.prevent="submit">
     <div>
       <label
         for="register-name-input"
-        class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5"
+        class="block text-xs font-bold uppercase text-slate-700"
       >
         Nama Lengkap
       </label>
-      <div class="relative">
-        <User
-          :size="18"
-          aria-hidden="true"
-          class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-        />
+      <span
+        class="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2.5"
+      >
+        <User :size="16" class="text-slate-600" aria-hidden="true" />
         <input
-          type="text"
           id="register-name-input"
-          data-testid="register-name-input"
-          v-model="name"
-          autocomplete="name"
-          placeholder="Nama Lengkap Anda"
-          class="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
-          required
+          type="text"
+          :value="name"
+          placeholder="Nama kamu"
+          class="w-full outline-none text-sm text-slate-900 placeholder:text-slate-500"
+          data-testid="register-name"
+          @input="onName"
         />
-      </div>
+      </span>
     </div>
 
     <div>
       <label
         for="register-email-input"
-        class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5"
+        class="block text-xs font-bold uppercase text-slate-700"
       >
         Alamat Email
       </label>
-      <div class="relative">
-        <Mail
-          :size="18"
-          aria-hidden="true"
-          class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-        />
+      <span
+        class="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2.5"
+      >
+        <Mail :size="16" class="text-slate-600" aria-hidden="true" />
         <input
-          type="email"
           id="register-email-input"
-          data-testid="register-email-input"
-          v-model="email"
-          autocomplete="email"
+          type="email"
+          :value="email"
           placeholder="nama@email.com"
-          class="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
-          required
+          class="w-full outline-none text-sm text-slate-900 placeholder:text-slate-500"
+          data-testid="register-email"
+          @input="onEmail"
         />
-      </div>
+      </span>
     </div>
 
     <div>
       <label
         for="register-password-input"
-        class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5"
+        class="block text-xs font-bold uppercase text-slate-700"
       >
         Kata Sandi
       </label>
-      <div class="relative">
-        <Lock
-          :size="18"
-          aria-hidden="true"
-          class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-        />
+      <span
+        class="mt-1 flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2.5"
+      >
+        <Lock :size="16" class="text-slate-600" aria-hidden="true" />
         <input
-          type="password"
           id="register-password-input"
-          data-testid="register-password-input"
-          v-model="password"
-          autocomplete="new-password"
+          type="password"
+          :value="password"
           placeholder="Minimal 6 karakter"
-          class="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
-          required
+          class="w-full outline-none text-sm text-slate-900 placeholder:text-slate-500"
+          data-testid="register-password"
+          @input="onPassword"
         />
-      </div>
+      </span>
     </div>
 
-    <div class="pt-2">
-      <button
-        type="submit"
-        id="register-submit-button"
-        data-testid="register-submit-button"
-        :disabled="loading"
-        class="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-md shadow-blue-600/25 transition-all disabled:opacity-60"
-      >
-        <template v-if="loading">
-          <Loader2 :size="18" class="animate-spin" aria-hidden="true" />
-          <span>Mendaftarkan Akun...</span>
-        </template>
-        <template v-else>
-          <UserPlus :size="18" :stroke-width="2.5" aria-hidden="true" />
-          <span>Daftar Akun</span>
-        </template>
-      </button>
-    </div>
+    <button
+      id="register-submit-button"
+      type="submit"
+      :disabled="auth.isAuthRegister"
+      class="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+    >
+      <UserPlus :size="16" aria-hidden="true" />
+      {{ auth.isAuthRegister ? "Memproses..." : "Daftar Sekarang" }}
+    </button>
   </form>
 </template>

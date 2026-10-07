@@ -1,56 +1,40 @@
-const apiHelper = (() => {
-  async function fetchData(url, options = {}) {
-    const urlQuery = url.includes("?") ? url.split("?")[1] : "";
-    const urlWithoutQuery = url.replace(`?${urlQuery}`, "");
-    const fixUrl = urlWithoutQuery.endsWith("/")
-      ? urlWithoutQuery.slice(0, -1)
-      : urlWithoutQuery;
-    const fullUrl = fixUrl + (urlQuery ? `?${urlQuery}` : "");
+const TOKEN_KEY = "accessToken";
 
-    const token = getAccessToken();
-    const headers = {
-      ...(options.headers || {}),
-    };
+export const getAccessToken = () => localStorage.getItem(TOKEN_KEY);
+export const putAccessToken = (token) => localStorage.setItem(TOKEN_KEY, token);
+export const removeAccessToken = () => localStorage.removeItem(TOKEN_KEY);
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
+/**
+ * Wrapper fetch ke REST API Delcom.
+ * @param {string} path  contoh: "/auth/login"
+ * @param {{method?:string, params?:object, body?:object|FormData, isForm?:boolean}} opts
+ */
+export async function apiFetch(path, { method = "GET", params, body, isForm = false } = {}) {
+  const url = new URL(`${DELCOM_BASEURL}${path}`);
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, value);
     }
+  });
 
-    return fetch(fullUrl, {
-      ...options,
-      mode: "cors",
-      headers,
-    });
-  }
+  const headers = {};
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-  function putAccessToken(token) {
-    if (!token) {
-      localStorage.removeItem("accessToken");
-      document.cookie = "accessToken=; path=/; max-age=0; SameSite=Lax";
+  let payload;
+  if (body) {
+    if (isForm) {
+      payload = body;
     } else {
-      localStorage.setItem("accessToken", token);
-      document.cookie = `accessToken=${encodeURIComponent(token)}; path=/; max-age=86400; SameSite=Lax`;
+      headers["Content-Type"] = "application/json";
+      payload = JSON.stringify(body);
     }
   }
 
-  function getAccessToken() {
-    const fromStorage = localStorage.getItem("accessToken");
-    if (fromStorage) return fromStorage;
-
-    const match = document.cookie.match(/(?:^|; )accessToken=([^;]*)/);
-    if (match) {
-      const token = decodeURIComponent(match[1]);
-      localStorage.setItem("accessToken", token);
-      return token;
-    }
-    return null;
+  const response = await fetch(url.toString(), { method, headers, body: payload });
+  const json = await response.json();
+  if (!response.ok || json.success === false) {
+    throw new Error(json.message || "Terjadi kesalahan pada server");
   }
-
-  return {
-    fetchData,
-    putAccessToken,
-    getAccessToken,
-  };
-})();
-
-export default apiHelper;
+  return json;
+}

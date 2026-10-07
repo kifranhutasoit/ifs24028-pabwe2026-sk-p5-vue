@@ -1,104 +1,34 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { setActivePinia, createPinia } from "pinia";
-import { useAuthStore } from "./authStore";
-import authApi from "../api/authApi";
-import apiHelper from "../../../helpers/apiHelper";
-import * as toolsHelper from "../../../helpers/toolsHelper";
+import { useAuthStore } from "./authStore.js";
+import * as api from "../api/authApi.js";
+import * as tools from "../../../helpers/toolsHelper.js";
+
+vi.mock("../api/authApi.js");
+vi.mock("../../../helpers/toolsHelper.js", () => ({ showSuccessDialog: vi.fn(), showErrorDialog: vi.fn() }));
 
 describe("authStore", () => {
-  beforeEach(() => {
-    setActivePinia(createPinia());
-    vi.restoreAllMocks();
+  beforeEach(() => setActivePinia(createPinia()));
+
+  it("login berhasil & gagal", async () => {
+    const s = useAuthStore();
+    api.postLogin.mockResolvedValueOnce({ data: { token: "t" } });
+    expect(await s.login("a", "b")).toBe(true);
+    expect(s.isLoggedIn).toBe(true);
+    api.postLogin.mockRejectedValueOnce(new Error("salah"));
+    expect(await s.login("a", "b")).toBe(false);
+    expect(tools.showErrorDialog).toHaveBeenCalledWith("salah");
   });
-
-  it("should have correct default state", () => {
-    const store = useAuthStore();
-    expect(store.isAuthLogin).toBe(false);
-    expect(store.isAuthRegister).toBe(false);
-    expect(store.isAuthLogout).toBe(false);
+  it("register berhasil & gagal", async () => {
+    const s = useAuthStore();
+    api.postRegister.mockResolvedValueOnce({ message: "ok" });
+    expect(await s.register("n", "e", "p")).toBe(true);
+    api.postRegister.mockRejectedValueOnce(new Error("x"));
+    expect(await s.register("n", "e", "p")).toBe(false);
   });
-
-  it("should update state with setters", () => {
-    const store = useAuthStore();
-    store.setIsAuthLogin(true);
-    expect(store.isAuthLogin).toBe(true);
-
-    store.setIsAuthRegister(true);
-    expect(store.isAuthRegister).toBe(true);
-
-    store.setIsAuthLogout(true);
-    expect(store.isAuthLogout).toBe(true);
-  });
-
-  describe("asyncSetIsAuthLogin", () => {
-    it("should set isAuthLogin to true and store token on success", async () => {
-      const store = useAuthStore();
-      vi.spyOn(authApi, "postLogin").mockResolvedValue({ token: "jwt-123" });
-      const putTokenSpy = vi.spyOn(apiHelper, "putAccessToken").mockImplementation(() => {});
-
-      await store.asyncSetIsAuthLogin("email@del.org", "password");
-
-      expect(putTokenSpy).toHaveBeenCalledWith("jwt-123");
-      expect(store.isAuthLogin).toBe(true);
-    });
-
-    it("should set isAuthLogin to false and show error on failure", async () => {
-      const store = useAuthStore();
-      vi.spyOn(authApi, "postLogin").mockRejectedValue(new Error("Login gagal"));
-      const errorSpy = vi.spyOn(toolsHelper, "showErrorDialog").mockImplementation(() => {});
-
-      await store.asyncSetIsAuthLogin("email@del.org", "wrong");
-
-      expect(errorSpy).toHaveBeenCalledWith("Login gagal");
-      expect(store.isAuthLogin).toBe(false);
-    });
-  });
-
-  describe("asyncSetIsAuthRegister", () => {
-    it("should set isAuthRegister to true and show success dialog on success", async () => {
-      const store = useAuthStore();
-      vi.spyOn(authApi, "postRegister").mockResolvedValue("Registrasi Berhasil");
-      const successSpy = vi.spyOn(toolsHelper, "showSuccessDialog").mockImplementation(() => {});
-
-      await store.asyncSetIsAuthRegister("Name", "name@del.org", "pass");
-
-      expect(successSpy).toHaveBeenCalledWith("Registrasi Berhasil");
-      expect(store.isAuthRegister).toBe(true);
-    });
-
-    it("should set isAuthRegister to false and show error dialog on failure", async () => {
-      const store = useAuthStore();
-      vi.spyOn(authApi, "postRegister").mockRejectedValue(new Error("Email sudah terdaftar"));
-      const errorSpy = vi.spyOn(toolsHelper, "showErrorDialog").mockImplementation(() => {});
-
-      await store.asyncSetIsAuthRegister("Name", "name@del.org", "pass");
-
-      expect(errorSpy).toHaveBeenCalledWith("Email sudah terdaftar");
-      expect(store.isAuthRegister).toBe(false);
-    });
-  });
-
-  describe("asyncSetIsAuthLogout", () => {
-    it("should clear token and set isAuthLogout to true on success", async () => {
-      const store = useAuthStore();
-      vi.spyOn(authApi, "postLogout").mockResolvedValue("Berhasil logout");
-      const putTokenSpy = vi.spyOn(apiHelper, "putAccessToken").mockImplementation(() => {});
-
-      await store.asyncSetIsAuthLogout();
-
-      expect(putTokenSpy).toHaveBeenCalledWith("");
-      expect(store.isAuthLogout).toBe(true);
-    });
-
-    it("should still clear token and set isAuthLogout to true even if api throws error", async () => {
-      const store = useAuthStore();
-      vi.spyOn(authApi, "postLogout").mockRejectedValue(new Error("Network fail"));
-      const putTokenSpy = vi.spyOn(apiHelper, "putAccessToken").mockImplementation(() => {});
-
-      await store.asyncSetIsAuthLogout();
-
-      expect(putTokenSpy).toHaveBeenCalledWith("");
-      expect(store.isAuthLogout).toBe(true);
-    });
+  it("logout", () => {
+    const s = useAuthStore();
+    s.token = "t";
+    s.logout();
+    expect(s.isLoggedIn).toBe(false);
   });
 });

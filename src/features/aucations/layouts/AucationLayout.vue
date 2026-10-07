@@ -1,90 +1,30 @@
-<template>
-  <div v-if="!usersStore.profile" class="min-h-screen flex items-center justify-center bg-slate-50">
-    <div class="flex flex-col items-center gap-3">
-      <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      <p class="text-sm font-medium text-slate-600">Memuat sesi pengguna...</p>
-    </div>
-  </div>
-
-  <div v-else class="min-h-screen bg-slate-50 text-slate-800">
-    <NavbarComponent
-      :profile="usersStore.profile"
-      :is-sidebar-open="isSidebarOpen"
-      @logout="handleLogout"
-      @toggle-sidebar="isSidebarOpen = !isSidebarOpen"
-    />
-
-    <SidebarComponent
-      :is-sidebar-open="isSidebarOpen"
-      @close-mobile="isSidebarOpen = false"
-    />
-
-    <main class="pt-16 md:pl-64 transition-all">
-      <div class="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-        <RouterView />
-      </div>
-    </main>
-  </div>
-</template>
-
 <script setup>
-import { ref, onMounted, watch } from "vue";
-import { useRouter, RouterView } from "vue-router";
+import { onMounted, ref } from "vue";
+import { RouterView, useRouter } from "vue-router";
 import NavbarComponent from "../components/NavbarComponent.vue";
 import SidebarComponent from "../components/SidebarComponent.vue";
-import { useUsersStore } from "../../users/states/usersStore";
-import { useAuthStore } from "../../auth/states/authStore";
-import apiHelper from "../../../helpers/apiHelper";
+import { useUsersStore } from "../../users/states/usersStore.js";
+import { useAuthStore } from "../../auth/states/authStore.js";
 
 const router = useRouter();
-const usersStore = useUsersStore();
-const authStore = useAuthStore();
+const users = useUsersStore();
+const auth = useAuthStore();
+const open = ref(false);
 
-const isSidebarOpen = ref(false);
-let retryCount = 0;
-
-onMounted(() => {
-  const authToken = apiHelper.getAccessToken();
-  if (authToken) {
-    usersStore.asyncSetProfile();
-  } else {
-    router.push("/auth/login");
+onMounted(async () => {
+  if (!(await users.fetchProfile())) {
+    auth.logout();
+    router.replace("/auth/login");
   }
 });
-
-watch(
-  () => [usersStore.isProfile, usersStore.profile],
-  async ([isProfile, profile]) => {
-    if (!isProfile) return;
-    usersStore.setIsProfile(false);
-    if (profile) {
-      retryCount = 0;
-      return;
-    }
-
-    if (retryCount < 2 && apiHelper.getAccessToken()) {
-      retryCount += 1;
-      await new Promise((r) => setTimeout(r, 800));
-      usersStore.asyncSetProfile();
-      return;
-    }
-
-    apiHelper.putAccessToken("");
-    router.push("/auth/login");
-  }
-);
-
-watch(
-  () => authStore.isAuthLogout,
-  (isAuthLogout) => {
-    if (isAuthLogout) {
-      authStore.setIsAuthLogout(false);
-      router.push("/auth/login");
-    }
-  }
-);
-
-function handleLogout() {
-  authStore.asyncSetIsAuthLogout();
-}
 </script>
+
+<template>
+  <div class="min-h-screen">
+    <NavbarComponent @toggle-sidebar="open = !open" />
+    <div class="flex">
+      <SidebarComponent :open="open" @close="open = false" />
+      <main class="min-w-0 flex-1 p-4 sm:p-6"><RouterView /></main>
+    </div>
+  </div>
+</template>

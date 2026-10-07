@@ -1,196 +1,83 @@
+import { ref } from "vue";
 import { defineStore } from "pinia";
-import aucationApi from "../api/aucationApi";
-import { showErrorDialog, showSuccessDialog } from "../../../helpers/toolsHelper";
+import * as api from "../api/aucationApi.js";
+import { showErrorDialog, showSuccessDialog } from "../../../helpers/toolsHelper.js";
 
-export const useAucationsStore = defineStore("aucations", {
-  state: () => ({
-    aucations: [],
-    aucation: null,
-    isAucation: false,
-    isAucationAdd: false,
-    isAucationAdded: false,
-    isAucationChange: false,
-    isAucationChanged: false,
-    isAucationChangeCover: false,
-    isAucationChangedCover: false,
-    isAucationDelete: false,
-    isAucationDeleted: false,
-    isBidAdd: false,
-    isBidAdded: false,
-    isBidDelete: false,
-    isBidDeleted: false,
-    isAucationDeleteAll: false,
-    isAucationDeletedAll: false,
-  }),
-  actions: {
-    setAucations(aucations) {
-      this.aucations = aucations;
-    },
-    setAucation(aucation) {
-      this.aucation = aucation;
-    },
-    setIsAucation(status) {
-      this.isAucation = status;
-    },
-    setIsAucationAdd(status) {
-      this.isAucationAdd = status;
-    },
-    setIsAucationAdded(status) {
-      this.isAucationAdded = status;
-    },
-    setIsAucationChange(status) {
-      this.isAucationChange = status;
-    },
-    setIsAucationChanged(status) {
-      this.isAucationChanged = status;
-    },
-    setIsAucationChangeCover(status) {
-      this.isAucationChangeCover = status;
-    },
-    setIsAucationChangedCover(status) {
-      this.isAucationChangedCover = status;
-    },
-    setIsAucationDelete(status) {
-      this.isAucationDelete = status;
-    },
-    setIsAucationDeleted(status) {
-      this.isAucationDeleted = status;
-    },
-    setIsBidAdd(status) {
-      this.isBidAdd = status;
-    },
-    setIsBidAdded(status) {
-      this.isBidAdded = status;
-    },
-    setIsBidDelete(status) {
-      this.isBidDelete = status;
-    },
-    setIsBidDeleted(status) {
-      this.isBidDeleted = status;
-    },
-    setIsAucationDeleteAll(status) {
-      this.isAucationDeleteAll = status;
-    },
-    setIsAucationDeletedAll(status) {
-      this.isAucationDeletedAll = status;
-    },
+export const useAucationsStore = defineStore("aucations", () => {
+  const aucations = ref([]);
+  const aucation = ref(null);
+  const isAucation = ref(false);
+  const isAucationAdd = ref(false);
+  const isAucationAdded = ref(false);
+  const isAucationChange = ref(false);
+  const isAucationChanged = ref(false);
+  const isAucationChangeCover = ref(false);
+  const isAucationChangedCover = ref(false);
+  const isAucationDelete = ref(false);
+  const isAucationDeleted = ref(false);
+  const isBidAdd = ref(false);
+  const isBidAdded = ref(false);
+  const isBidDelete = ref(false);
+  const isBidDeleted = ref(false);
+  const isAucationDeleteAll = ref(false);
+  const isAucationDeletedAll = ref(false);
 
-    async asyncSetAucations(isMe = null, isClosed = null) {
-      try {
-        const aucations = await aucationApi.getAucations(isMe, isClosed);
-        this.setAucations(aucations);
-      } catch {
-        this.setAucations([]);
-      } finally {
-        this.setIsAucation(true);
-      }
-    },
+  async function fetchAucations(params = {}) {
+    isAucation.value = true;
+    try {
+      aucations.value = (await api.getAucations(params)).data.aucations || [];
+    } catch (error) {
+      aucations.value = [];
+      await showErrorDialog(error.message);
+    } finally {
+      isAucation.value = false;
+    }
+  }
 
-    async asyncSetAucationById(id) {
-      try {
-        const aucation = await aucationApi.getAucationById(id);
-        this.setAucation(aucation);
-      } catch {
-        this.setAucation(null);
-      } finally {
-        this.setIsAucation(true);
-      }
-    },
+  async function fetchAucation(id) {
+    isAucation.value = true;
+    try {
+      aucation.value = (await api.getAucation(id)).data.aucation;
+      return true;
+    } catch (error) {
+      aucation.value = null;
+      await showErrorDialog(error.message);
+      return false;
+    } finally {
+      isAucation.value = false;
+    }
+  }
 
-    async asyncPostAucation(title, description, startBid, closedAt) {
-      try {
-        await aucationApi.postAucation(title, description, startBid, closedAt);
-        showSuccessDialog("Sesi lelang berhasil ditambahkan!");
-        this.setIsAucationAdd(true);
-        this.setIsAucationAdded(true);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsAucationAdd(false);
-        this.setIsAucationAdded(false);
-      }
-    },
+  async function mutate(loading, done, fn) {
+    loading.value = true;
+    done.value = false;
+    try {
+      const res = await fn();
+      done.value = true;
+      await showSuccessDialog(res.message || "Berhasil");
+      return true;
+    } catch (error) {
+      await showErrorDialog(error.message);
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  }
 
-    async asyncPutAucation(id, title, description, startBid, closedAt) {
-      try {
-        const message = await aucationApi.putAucation(id, title, description, startBid, closedAt);
-        showSuccessDialog(message || "Data lelang berhasil diperbarui!");
-        this.setIsAucationChange(true);
-        this.setIsAucationChanged(true);
-        await this.asyncSetAucationById(id);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsAucationChange(false);
-        this.setIsAucationChanged(false);
-      }
-    },
+  const addAucation = (payload) => mutate(isAucationAdd, isAucationAdded, () => api.postAucation(payload));
+  const changeAucation = (id, payload) => mutate(isAucationChange, isAucationChanged, () => api.putAucation(id, payload));
+  const changeCover = (id, file) => mutate(isAucationChangeCover, isAucationChangedCover, () => api.postAucationCover(id, file));
+  const deleteAucation = (id) => mutate(isAucationDelete, isAucationDeleted, () => api.deleteAucation(id));
+  const addBid = (id, bid) => mutate(isBidAdd, isBidAdded, () => api.postBid(id, bid));
+  const deleteBid = (id) => mutate(isBidDelete, isBidDeleted, () => api.deleteBid(id));
+  const deleteAllAucations = () => mutate(isAucationDeleteAll, isAucationDeletedAll, () => api.deleteAllAucations());
 
-    async asyncPostAucationCover(id, coverFile) {
-      try {
-        const message = await aucationApi.postAucationCover(id, coverFile);
-        showSuccessDialog(message || "Cover lelang berhasil diperbarui!");
-        this.setIsAucationChangeCover(true);
-        this.setIsAucationChangedCover(true);
-        await this.asyncSetAucationById(id);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsAucationChangeCover(false);
-        this.setIsAucationChangedCover(false);
-      }
-    },
-
-    async asyncDeleteAucation(id) {
-      try {
-        const message = await aucationApi.deleteAucation(id);
-        showSuccessDialog(message || "Lelang berhasil dihapus!");
-        this.setIsAucationDelete(true);
-        this.setIsAucationDeleted(true);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsAucationDelete(false);
-        this.setIsAucationDeleted(false);
-      }
-    },
-
-    async asyncPostBid(id, bid) {
-      try {
-        const message = await aucationApi.postBid(id, bid);
-        showSuccessDialog(message || "Penawaran berhasil diajukan!");
-        this.setIsBidAdd(true);
-        this.setIsBidAdded(true);
-        await this.asyncSetAucationById(id);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsBidAdd(false);
-        this.setIsBidAdded(false);
-      }
-    },
-
-    async asyncDeleteBid(id) {
-      try {
-        const message = await aucationApi.deleteBid(id);
-        showSuccessDialog(message || "Penawaran berhasil dibatalkan!");
-        this.setIsBidDelete(true);
-        this.setIsBidDeleted(true);
-        await this.asyncSetAucationById(id);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsBidDelete(false);
-        this.setIsBidDeleted(false);
-      }
-    },
-
-    async asyncDeleteAllAucations() {
-      try {
-        const message = await aucationApi.deleteAucations();
-        showSuccessDialog(message || "Semua data lelang berhasil dihapus!");
-        this.setIsAucationDeleteAll(true);
-        this.setIsAucationDeletedAll(true);
-        this.setAucations([]);
-      } catch (error) {
-        showErrorDialog(error.message);
-        this.setIsAucationDeleteAll(false);
-        this.setIsAucationDeletedAll(false);
-      }
-    },
-  },
+  return {
+    aucations, aucation, isAucation,
+    isAucationAdd, isAucationAdded, isAucationChange, isAucationChanged,
+    isAucationChangeCover, isAucationChangedCover, isAucationDelete, isAucationDeleted,
+    isBidAdd, isBidAdded, isBidDelete, isBidDeleted, isAucationDeleteAll, isAucationDeletedAll,
+    fetchAucations, fetchAucation, addAucation, changeAucation, changeCover,
+    deleteAucation, addBid, deleteBid, deleteAllAucations,
+  };
 });

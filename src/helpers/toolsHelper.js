@@ -1,82 +1,53 @@
 import Swal from "sweetalert2";
 
-export function showErrorDialog(message) {
-  return Swal.fire({
-    title: "Terjadi Kesalahan",
-    text: message,
-    icon: "error",
-    confirmButtonText: "Tutup",
-    confirmButtonColor: "#ef4444",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      Swal.close();
-    }
-    return result;
-  });
-}
+export const showSuccessDialog = (message) =>
+  Swal.fire({ icon: "success", title: "Berhasil", text: message, timer: 1800, showConfirmButton: false });
 
-export function showWarningDialog(message) {
-  return Swal.fire({
-    title: "Peringatan",
-    text: message,
-    icon: "warning",
-    confirmButtonText: "Tutup",
-    confirmButtonColor: "#f59e0b",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      Swal.close();
-    }
-    return result;
-  });
-}
+export const showErrorDialog = (message) =>
+  Swal.fire({ icon: "error", title: "Gagal", text: message });
 
-export function showSuccessDialog(message) {
-  return Swal.fire({
-    title: "Tindakan Berhasil",
-    text: message,
-    icon: "success",
-    confirmButtonText: "Tutup",
-    confirmButtonColor: "#10b981",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      Swal.close();
-    }
-    return result;
-  });
-}
+export const showWarningDialog = (message) =>
+  Swal.fire({ icon: "warning", title: "Perhatian", text: message });
 
-export function showConfirmDialog(message) {
-  return Swal.fire({
+export const showConfirmDialog = async (message) => {
+  const result = await Swal.fire({
+    icon: "question",
     title: "Konfirmasi",
     text: message,
-    icon: "question",
     showCancelButton: true,
     confirmButtonText: "Ya",
-    cancelButtonText: "Tidak",
-    confirmButtonColor: "#2563eb",
-    cancelButtonColor: "#94a3b8",
+    cancelButtonText: "Batal",
   });
-}
+  return result.isConfirmed;
+};
 
-export function formatRupiah(amount) {
-  if (amount === null || amount === undefined || isNaN(Number(amount))) {
-    return "Rp 0";
-  }
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+export const formatRupiah = (value) =>
+  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(
+    Number(value) || 0
+  );
 
-export function formatDate(date) {
-  if (!date) return "-";
-  return new Date(date).toLocaleString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+export const formatDate = (value) => {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+};
+
+/** "2026-10-10T10:00" -> "2026-10-10 10:00:00" */
+export const toApiDate = (value) => (value ? `${value.replace("T", " ")}:00` : "");
+
+/** Nilai tawaran tertinggi (fallback ke harga awal) */
+export const getHighestBid = (aucation) => {
+  const bids = (aucation?.bids || []).map((b) => Number(b.bid) || 0);
+  return Math.max(Number(aucation?.start_bid) || 0, ...bids);
+};
+
+export const isAucationClosed = (aucation, now = Date.now()) =>
+  Boolean(aucation?.is_closed) || (aucation?.closed_at ? new Date(aucation.closed_at).getTime() <= now : false);
+
+export const countdownText = (closedAt, now = Date.now()) => {
+  const diff = new Date(closedAt).getTime() - now;
+  if (!closedAt || diff <= 0) return "Ditutup";
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  return d > 0 ? `${d} hari ${h} jam lagi` : `${h} jam ${m} menit lagi`;
+};

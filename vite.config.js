@@ -6,23 +6,14 @@ import process from "process";
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-
   return {
     plugins: [vue(), tailwindcss()],
-    server: {
-      port: Number(env.APP_PORT) || 3000,
-    },
-    preview: {
-      port: Number(env.APP_PORT) || 3000,
-    },
+    server: { port: Number(env.APP_PORT) || 3000 },
+    preview: { port: Number(env.APP_PORT) || 3000 },
     define: {
       DELCOM_BASEURL: JSON.stringify(
         env.VITE_DELCOM_BASEURL || "https://open-api.delcom.org/api/v1"
       ),
-    },
-    build: {
-      sourcemap: true,
-      target: "es2020",
     },
     test: {
       globals: true,
@@ -40,12 +31,7 @@ export default defineConfig(({ mode }) => {
           "node_modules/**",
           ".docs/**",
         ],
-        thresholds: {
-          lines: 100,
-          functions: 100,
-          branches: 100,
-          statements: 100,
-        },
+        thresholds: { lines: 100, functions: 100, branches: 100, statements: 100 },
       },
     },
   };
