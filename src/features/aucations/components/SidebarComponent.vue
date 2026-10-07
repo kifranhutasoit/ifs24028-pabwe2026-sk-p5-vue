@@ -4,20 +4,22 @@
     <div
       v-if="isSidebarOpen"
       data-testid="sidebar-backdrop"
+      aria-hidden="true"
       @click="$emit('close-mobile')"
       class="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
     />
 
     <aside
+      aria-label="Sidebar aplikasi"
       class="fixed top-16 bottom-0 left-0 z-30 w-64 bg-white border-r border-slate-200 p-4 transition-transform duration-200 md:translate-x-0"
       :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
     >
       <div class="flex flex-col h-full justify-between">
         <div class="space-y-4">
-          <p class="px-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+          <p class="px-3 text-xs font-bold uppercase tracking-wider text-slate-600">
             Menu Utama
           </p>
-          <nav class="space-y-1">
+          <nav aria-label="Menu utama" class="space-y-1">
             <RouterLink
               v-for="item in navItems"
               :key="item.to"
@@ -41,10 +43,11 @@
                   <component
                     :is="item.icon"
                     :size="18"
+                    aria-hidden="true"
                     :class="
                       (item.exact ? isExactActive : isActive)
-                        ? 'text-blue-600'
-                        : 'text-slate-400'
+                        ? 'text-blue-700'
+                        : 'text-slate-600'
                     "
                   />
                   <span>{{ item.label }}</span>
@@ -52,14 +55,15 @@
                 <ChevronRight
                   v-if="item.exact ? isExactActive : isActive"
                   :size="14"
-                  class="text-blue-500"
+                  aria-hidden="true"
+                  class="text-blue-700"
                 />
               </a>
             </RouterLink>
           </nav>
         </div>
 
-        <div class="pt-3 border-t border-slate-100 px-3 text-xs text-slate-400 flex items-center justify-between">
+        <div class="pt-3 border-t border-slate-100 px-3 text-xs text-slate-600 flex items-center justify-between">
           <span>Delcom Auction</span>
           <span>PABWE P5</span>
         </div>

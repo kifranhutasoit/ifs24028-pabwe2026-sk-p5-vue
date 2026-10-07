@@ -20,6 +20,17 @@ export default defineConfig(({ mode }) => {
         env.VITE_DELCOM_BASEURL || "https://open-api.delcom.org/api/v1"
       ),
     },
+    build: {
+      sourcemap: true,
+      target: "es2020",
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ["vue", "vue-router", "pinia"],
+          },
+        },
+      },
+    },
     test: {
       globals: true,
       environment: "jsdom",

@@ -9,13 +9,13 @@
           class="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
           aria-label="Toggle Navigation"
         >
-          <X v-if="isSidebarOpen" :size="20" />
-          <Menu v-else :size="20" />
+          <X v-if="isSidebarOpen" :size="20" aria-hidden="true" />
+          <Menu v-else :size="20" aria-hidden="true" />
         </button>
 
         <RouterLink to="/" class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
-            <Gavel :size="20" />
+            <Gavel :size="20" aria-hidden="true" />
           </div>
           <span class="text-base sm:text-lg font-bold text-slate-900">
             Delcom Auction
@@ -28,6 +28,8 @@
         <button
           type="button"
           data-testid="profile-dropdown-button"
+          aria-haspopup="menu"
+          :aria-expanded="dropdownOpen"
           @click="dropdownOpen = !dropdownOpen"
           class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         >
@@ -48,13 +50,14 @@
             <span class="text-xs font-semibold text-slate-800 leading-tight">
               {{ userProfile?.name || "Pengguna" }}
             </span>
-            <span class="text-[11px] text-slate-500 leading-tight">
+            <span class="text-[11px] text-slate-600 leading-tight">
               {{ userProfile?.email || "" }}
             </span>
           </div>
           <ChevronDown
             :size="14"
-            class="text-slate-400 transition-transform duration-200"
+            aria-hidden="true"
+            class="text-slate-600 transition-transform duration-200"
             :class="{ 'rotate-180': dropdownOpen }"
           />
         </button>
@@ -66,7 +69,7 @@
         >
           <div class="px-3 py-2 sm:hidden">
             <p class="text-sm font-semibold text-slate-800">{{ userProfile?.name || "Pengguna" }}</p>
-            <p class="text-xs text-slate-500 truncate">{{ userProfile?.email }}</p>
+            <p class="text-xs text-slate-600 truncate">{{ userProfile?.email }}</p>
           </div>
 
           <div class="py-1">
@@ -76,7 +79,7 @@
               @click="handleProfileClick"
               class="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 rounded-md hover:bg-slate-100 transition-colors text-left"
             >
-              <User :size="16" class="text-slate-500" />
+              <User :size="16" aria-hidden="true" class="text-slate-600" />
               Profil Saya
             </button>
           </div>
@@ -86,9 +89,9 @@
               type="button"
               data-testid="dropdown-logout-button"
               @click="handleLogoutClick"
-              class="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 rounded-md hover:bg-red-50 transition-colors text-left"
+              class="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-700 rounded-md hover:bg-red-50 transition-colors text-left"
             >
-              <LogOut :size="16" class="text-red-500" />
+              <LogOut :size="16" aria-hidden="true" class="text-red-700" />
               Keluar
             </button>
           </div>

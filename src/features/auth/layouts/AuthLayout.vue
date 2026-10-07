@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+  <main class="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="sm:mx-auto sm:w-full sm:max-w-md text-center">
       <div class="inline-flex w-12 h-12 rounded-xl bg-blue-600 items-center justify-center text-white shadow-xs mb-3">
         <Gavel :size="24" aria-hidden="true" />
@@ -35,7 +35,7 @@
         <RouterView />
       </div>
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup>
