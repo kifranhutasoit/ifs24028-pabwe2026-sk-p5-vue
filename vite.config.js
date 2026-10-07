@@ -23,13 +23,6 @@ export default defineConfig(({ mode }) => {
     build: {
       sourcemap: true,
       target: "es2020",
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ["vue", "vue-router", "pinia"],
-          },
-        },
-      },
     },
     test: {
       globals: true,
