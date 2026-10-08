@@ -31,7 +31,7 @@ export default defineConfig({
       reporter: ['text', 'json', 'html', 'lcov'],
       include: ['src/**/*.{js,vue}'],
       exclude: ['src/main.js', 'src/setupTests.js', 'src/test-utils.js', '**/*.test.js'],
-      thresholds: { statements: 100, branches: 100, statements: 100, lines: 100 },
+      thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
     },
   },
 })

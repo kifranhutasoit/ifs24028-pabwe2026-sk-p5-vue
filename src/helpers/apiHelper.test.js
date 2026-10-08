@@ -31,7 +31,7 @@ describe('apiHelper', () => {
 
   it('requestJson prefixes base url and parses json', async () => {
     expect(await requestJson('/users')).toEqual({ status: 'success', success: true })
-    expect(fetch.mock.calls[0][0]).toBe('https://open-api.delcom.org/api/v1/users')
+    expect(fetch.mock.calls[0][0]).toBe('/api/v1/users')
   })
 
   it('marks only status "success" as success', () => {

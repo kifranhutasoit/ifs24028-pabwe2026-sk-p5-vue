@@ -6,7 +6,7 @@ describe('authApi', () => {
 
   it('posts login and normalises the response', async () => {
     expect(await login({ email: 'a@b.c', password: 'pw' })).toEqual({ status: 'success', success: true })
-    expect(fetch.mock.calls[0][0]).toBe('https://open-api.delcom.org/api/v1/auth/login')
+    expect(fetch.mock.calls[0][0]).toBe('/api/v1/auth/login')
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ email: 'a@b.c', password: 'pw' })
   })
 
