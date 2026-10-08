@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getAccessToken } from './helpers/apiHelper.js'
 
-// Layout boleh tetap static (lebih ringan)
+// Layout
 import AuthLayout from './features/auth/layouts/AuthLayout.vue'
 import AucationLayout from './features/aucations/layouts/AucationLayout.vue'
 
-// Halaman diubah ke Dynamic Import
+// Dynamic Import
 const LoginPage = () => import('./features/auth/pages/LoginPage.vue')
 const RegisterPage = () => import('./features/auth/pages/RegisterPage.vue')
 const HomePage = () => import('./features/aucations/pages/HomePage.vue')
@@ -38,15 +38,25 @@ export const routes = [
   { path: '/:pathMatch(.*)*', component: NotFoundPage },
 ]
 
-function redirectFor(meta) {
+function redirectFor(to) {
   const loggedIn = Boolean(getAccessToken())
-  if (meta.requiresAuth && !loggedIn) return '/auth/login'
-  if (meta.guest && loggedIn) return '/'
-  return ''
+
+  // Cek semua matched route (termasuk parent)
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+  const isGuest = to.matched.some((record) => record.meta.guest)
+
+  if (requiresAuth && !loggedIn) return '/auth/login'
+  if (isGuest && loggedIn) return '/'
+  return true
 }
 
 export function createAppRouter(history = createWebHistory()) {
-  const router = createRouter({ history, routes })
-  router.beforeEach((to) => redirectFor(to.meta) || true)
+  const router = createRouter({
+    history,
+    routes,
+  })
+
+  router.beforeEach((to) => redirectFor(to))
+
   return router
 }
